@@ -1,0 +1,7 @@
+---
+title: "sprawozdanie1"
+format: pdf
+editor: visual
+---
+
+## 
