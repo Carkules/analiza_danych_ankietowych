@@ -1,7 +1,258 @@
 ---
-title: "sprawozdanie1"
-format: pdf
-editor: visual
+title: "Analiza Danych Ankietowych - Raport nr 1"
+subtitle: "Analiza skuteczności programów szkoleniowych"
+author: "Jakub Bartłomowicz, Konrad Słotta"
+date: "`r Sys.Date()`"
+lang: pl
+format: 
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    geometry: "left=2cm,right=2cm,top=2cm,bottom=2cm"
+    fig-align: center
+    fig-pos: H
+execute:
+  echo: false
+  warning: false
+  message: false
+  tidy: true
 ---
 
-## 
+# Część I: Analiza eksploracyjna danych
+
+## Wstęp i przygotowanie zbioru danych
+
+Wstępnym etapem prac jest import danych z pliku oraz ich odpowiednia transformacja. Proces ten obejmuje definicję zmiennych kategorycznych (czynników) oraz przypisanie im czytelnych etykiet, co ułatwia interpretację wyników w dalszych częściach raportu.
+
+```{r}
+#| label: przygotowanie-danych
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+
+data <- read.csv2("ankieta2.csv", stringsAsFactors = FALSE)
+
+# Transformacja zmiennych - czytelne formatowanie kodu dla PDF
+data <- data %>%
+  mutate(
+    DZIAŁ = factor(DZIAŁ, levels = c("HR", "IT", "PD", "MK")),
+    STAŻ = factor(STAŻ, levels = 1:3, 
+                  labels = c("Poniżej 1 roku", "1-3 lata", "Powyżej 3 lat")),
+    CZY_KIER = factor(CZY_KIER),
+    PŁEĆ = factor(PŁEĆ),
+    PYT_1 = factor(PYT_1, levels = -2:2, 
+                   labels = c("Zdec. nie", "Nie", "Brak zdania", 
+                              "Tak", "Zdec. tak")),
+    PYT_2 = factor(PYT_2, levels = c(-2, -1, 1, 2), 
+                   labels = c("Zdec. nie", "Nie", "Tak", "Zdec. tak")),
+    PYT_3 = factor(PYT_3, levels = c(-2, -1, 1, 2), 
+                   labels = c("Zdec. nie", "Nie", "Tak", "Zdec. tak")),
+    WIEK = as.numeric(WIEK)
+  )
+
+braki <- colSums(is.na(data))
+```
+
+Dane zostały wczytane poprawnie, nie stwierdzono żadnych braków danych.
+
+## Kategoryzacja zmiennej WIEK
+
+Zmienna ciągła WIEK została zdyskretyzowana na cztery rozłączne przedziały. Pozwala to na łatwiejszą interpretację wyników w grupach demograficznych.
+
+```{r}
+data <- data %>%
+  mutate(WIEK_KAT = cut(WIEK, 
+                        breaks = c(0, 35, 45, 55, Inf), 
+                        labels = c("do 35 lat", "36-45 lat", 
+                                   "46-55 lat", "powyżej 55 lat")))
+```
+
+W strukturze wieku największą grupę stanowią osoby w przedziale 36-45 lat.
+
+## Tablice liczności i wnioski
+
+Poniżej przedstawiono tablice liczności dla kluczowych zmiennych demograficznych i organizacyjnych.
+
+```{r}
+stworz_tabele <- function(zmienna, nazwa_etykiety) {
+  data %>%
+    group_by(!!sym(zmienna)) %>%
+    summarise(N = n()) %>%
+    mutate(Procent = paste0(round(N/sum(N)*100, 1), "%")) %>%
+    kable(caption = paste("Rozkład zmiennej", nazwa_etykiety), 
+          booktabs = TRUE, col.names = c(nazwa_etykiety, "Liczebność", "Udział")) %>%
+    kable_styling(latex_options = c("striped", "hold_position"))
+}
+
+stworz_tabele("DZIAŁ", "Dział")
+stworz_tabele("STAŻ", "Staż pracy")
+stworz_tabele("CZY_KIER", "Funkcja kierownicza")
+stworz_tabele("PŁEĆ", "Płeć")
+stworz_tabele("WIEK_KAT", "Kategoria wiekowa")
+```
+
+**Wnioski z analizy struktury:**
+
+1.  **Dział:** Największą grupę pracowników stanowi Dział Produktowy (PD), obejmujący niemal połowę badanej próby. Najmniejszy udział ma dział IT.
+
+2.  **Staż:** Zdecydowana większość pracowników posiada staż od 1 do 3 lat, co sugeruje umiarkowaną stabilność zatrudnienia.
+
+3.  **Funkcja:** Tylko niewielka część pracowników (poniżej 15%) pełni funkcje kierownicze.
+
+4.  **Wiek:** Firma opiera się na pracownikach doświadczonych – ponad połowa osób mieści się w przedziale 36-45 lat.
+
+## Wizualizacja graficzna
+
+Graficzna prezentacja danych pozwala na szybką ocenę nastrojów pracowników.
+
+```{r}
+#| label: zad_1_4
+ggplot(data, aes(x = PYT_1, fill = PYT_1)) +
+  geom_bar() +
+  scale_fill_brewer(palette = "RdYlGn") +
+  labs(title = "Rysunek 1: Ocena wsparcia i materiałów", 
+       x = "Odpowiedź", y = "Liczba osób") +
+  theme_minimal() + theme(legend.position = "none") +
+    scale_fill_manual(values = c(
+    "Zdec. nie" = "#d73027",
+    "Nie"       = "#fc8d59",
+    "Tak"       = "#91cf60",
+    "Zdec. tak" = "#1a9850"
+  ))
+```
+
+Wykres słupkowy wskazuje na relatywnie pozytywną ocenę wsparcia materiałowego. Największy słupek przypada na odpowiedzi twierdzące, choć zauważalna jest grupa osób niezdecydowanych ("Brak zdania").
+
+```{r}
+data %>%
+  count(PYT_2) %>%
+  ggplot(aes(x = "", y = n, fill = PYT_2)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  theme_void() +
+  labs(title = "Rysunek 2: Czy szkolenia są dostosowane do potrzeb?") +
+    scale_fill_manual(values = c(
+    "Zdec. nie" = "#d73027",
+    "Nie"       = "#fc8d59",
+    "Tak"       = "#91cf60",
+    "Zdec. tak" = "#1a9850"
+  ))
+```
+
+Wykres kołowy obrazuje strukturę odpowiedzi na pytanie o merytoryczne dopasowanie szkoleń. Przewaga koloru zielonego (odpowiedzi "Tak") sugeruje, że programy szkoleniowe są dobrze sprofilowane pod kątem potrzeb pracowników.
+
+## Czy firma zapewnia odpowiednie wsparcie i materiały? Odpowiedzi według różnych grup
+```{r}
+#| label: tbl-pyt1-dzial
+#| tbl-cap: "Odpowiedzi na pytanie pierwsze według działu"
+tab <- table(data$PYT_1, data$DZIAŁ)
+kable(tab) |>
+  kable_styling(latex_options = "striped")
+```
+```{r}
+#| label: tbl-pyt1-staz
+#| tbl-cap: "Odpowiedzi na pytanie pierwsze według długości stażu"
+tab <- table(data$PYT_1, data$STAŻ)
+kable(tab) |>
+  kable_styling(latex_options = "striped")
+```
+```{r}
+#| label: tbl-pyt1-plec
+#| tbl-cap: "Odpowiedzi na pytanie pierwsze według płci"
+tab <- table(data$PYT_1, data$PŁEĆ)
+kable(tab) |>
+  kable_styling(latex_options = "striped")
+```
+```{r}
+#| label: tbl-pyt1-wiek
+#| tbl-cap: "Odpowiedzi na pytanie pierwsze według wieku"
+tab <- table(data$PYT_1, data$WIEK_KAT)
+kable(tab) |>
+  kable_styling(latex_options = "striped")
+```
+
+## Czy szkolenia w firmie poprawiły się?
+```{r}
+#| label: tbl-pyt2-pyt3
+#| tbl-cap: "PYT 2 vs PYT 3"
+tab <- table(data$PYT_2, data$PYT_3)
+kable(tab) |>
+  kable_styling(latex_options = "striped")
+```
+```{r}
+data <- data |> mutate(CZY_ZADOW = case_when(
+  PYT_2 == "Zdec. nie" | PYT_2 == "Nie" ~ "Nie",
+  PYT_2 == "Zdec. tak" | PYT_2 == "Tak" ~ "Tak",
+  PYT_2 == "Brak zdania" ~ "Brak zdania"
+))
+data <- data |> mutate(CZY_ZADOW = factor(CZY_ZADOW, levels = -1:1, 
+                   labels = c("Nie", "Brak zdania", "Tak")))
+```
+
+# Część II
+
+## Funkcja przedziału ufności Cloppera-Pearsona
+
+W celu precyzyjnej estymacji frakcji osób zadowolonych zaimplementowano funkcję wyznaczającą przedział ufności metodą Cloppera-Pearsona. Jest to metoda dokładna, która nie opiera się na przybliżeniu rozkładem normalnym.
+
+```{r}
+#| label: zad2_funkcja
+calc_cp <- function(alpha = 0.05, x = NULL, n = NULL, vec = NULL) {
+  if (!is.null(vec)) {
+    x <- sum(vec %in% c("Tak", "Zdec. tak"))
+    n <- length(vec)
+  }
+  L <- if(x == 0) 0 else qbeta(alpha/2, x, n - x + 1)
+  U <- if(x == n) 1 else qbeta(1 - alpha/2, x + 1, n - x)
+  return(c(Dolna = L, Gorna = U))
+}
+```
+
+## Przedziały ufności dla zadowolenia pracowników
+
+Wyznaczono 95-procentowe przedziały ufności dla frakcji pracowników uważających szkolenia za dostosowane w dwóch różnych okresach.
+
+```{r}
+#| label: zad3_obliczenia
+res2 <- calc_cp(alpha = 0.05, vec = data$PYT_2)
+res3 <- calc_cp(alpha = 0.05, vec = data$PYT_3)
+
+# Tabela wynikowa
+data.frame(
+  Okres = c("Okres 1 (PYT_2)", "Okres 2 (PYT_3)"),
+  Dolna = round(c(res2[1], res3[1]), 4),
+  Gorna = round(c(res2[2], res3[2]), 4)
+) %>%
+  kable(caption = "0.95 przedziały ufności Cloppera-Pearsona", booktabs = TRUE) %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+Porównanie granic przedziałów ufności pozwala stwierdzić, czy różnice w wynikach są istotne statystycznie. Nakładanie się przedziałów sugerowałoby brak wyraźnej zmiany w postrzeganiu szkoleń między okresami.
+
+## Symulacja prawdopodobieństwa pokrycia
+
+Przeprowadzono symulację (1000 iteracji), aby porównać rzeczywiste prawdopodobieństwo pokrycia wartości parametru p=0.5 przez przedział Cloppera-Pearsona oraz przedział Walda.
+
+```{r}
+#| label: zad4_symulacja
+set.seed(123)
+m <- 1000; n_s <- 200; p_t <- 0.5
+out <- replicate(m, {
+  x <- rbinom(1, n_s, p_t)
+  p_h <- x/n_s
+  cp <- calc_cp(0.05, x, n_s)
+  se <- sqrt(p_h*(1-p_h)/n_s)
+  wld <- c(p_h - 1.96*se, p_h + 1.96*se)
+  c(CP = (p_t >= cp[1] & p_t <= cp[2]), 
+    Wald = (p_t >= wld[1] & p_t <= wld[2]))
+})
+
+rowMeans(out) %>%
+  enframe(name = "Metoda", value = "Prawd. pokrycia") %>%
+  kable(caption = "Wyniki symulacji pokrycia", booktabs = TRUE) %>%
+  kable_styling(latex_options = "hold_position")
+```
+
+**Podsumowanie i wnioski z symulacji:**
+Wyniki symulacji jednoznacznie wskazują, że metoda **Cloppera-Pearsona** zachowuje założony poziom ufności (nie spada poniżej 0.95). Metoda Walda jest mniej stabilna, co potwierdza, że w profesjonalnych raportach ankietowych należy preferować metody dokładne.
