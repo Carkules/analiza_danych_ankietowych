@@ -1,0 +1,721 @@
+---
+title: "Analiza Danych Ankietowych - Raport nr 1"
+subtitle: "Analiza skuteczności programów szkoleniowych"
+author: "Jakub Bartłomowicz, Konrad Słotta"
+date: "`r Sys.Date()`"
+lang: pl
+format: 
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    geometry: "left=2cm,right=2cm,top=2cm,bottom=2cm"
+    fig-align: center
+    fig-pos: H
+knitr:
+  opts_chunk:
+    dev: cairo_pdf
+execute:
+  echo: false
+  warning: false
+  message: false
+  tidy: true
+---
+
+# Część I: Analiza eksploracyjna danych
+
+W pewnej dużej firmie technologicznej przeprowadzono ankietę mającą na celu ocenę skuteczności programów szkoleniowych dla pracowników. Wzięło w niej udział dwieście losowo wybranych osób. W tej części zajmiemy się przygotowaniem zebranych danych do analizy.
+
+## Wstęp i przygotowanie zbioru danych
+
+Wstępnym etapem prac jest import danych z pliku oraz ich odpowiednia transformacja. Proces ten obejmuje definicję zmiennych kategorycznych (czynników) oraz przypisanie im czytelnych etykiet, co ułatwia interpretację wyników w dalszych częściach raportu.
+
+```{r}
+#| label: przygotowanie-danych
+library(tidyverse)
+library(kableExtra)
+library(ggplot2)
+library(vcdExtra)
+
+
+data <- read.csv2("ankieta2.csv", stringsAsFactors = FALSE)
+
+# Transformacja zmiennych - czytelne formatowanie kodu dla PDF
+data <- data %>%
+  mutate(
+    DZIAŁ = factor(DZIAŁ, levels = c("HR", "IT", "PD", "MK")),
+    STAŻ = factor(STAŻ, levels = 1:3, 
+                  labels = c("Poniżej 1 roku", "1-3 lata", "Powyżej 3 lat")),
+    CZY_KIER = factor(CZY_KIER),
+    PŁEĆ = factor(PŁEĆ),
+    PYT_1 = factor(PYT_1, levels = -2:2, 
+                   labels = c("Zdec. nie", "Nie", "Brak zdania", 
+                              "Tak", "Zdec. tak")),
+    PYT_2 = factor(PYT_2, levels = c(-2, -1, 1, 2), 
+                   labels = c("Zdec. nie", "Nie", "Tak", "Zdec. tak")),
+    PYT_3 = factor(PYT_3, levels = c(-2, -1, 1, 2), 
+                   labels = c("Zdec. nie", "Nie", "Tak", "Zdec. tak")),
+    WIEK = as.numeric(WIEK)
+  )
+
+braki <- colSums(is.na(data))
+```
+
+Dane zostały wczytane poprawnie, nie stwierdzono żadnych braków danych.
+
+## Kategoryzacja zmiennej WIEK
+
+Zmienna ciągła WIEK została zdyskretyzowana na cztery rozłączne przedziały; do 35 lat, między 36 a 45 lat, między 46 a 55 lat, powyżej 55 lat. Pozwala to na łatwiejszą interpretację wyników w grupach demograficznych.
+
+```{r}
+data <- data %>%
+  mutate(WIEK_KAT = cut(WIEK, 
+                        breaks = c(0, 35, 45, 55, Inf), 
+                        labels = c("do 35 lat", "36-45 lat", 
+                                   "46-55 lat", "powyżej 55 lat")))
+```
+
+W strukturze wieku największą grupę stanowią osoby w przedziale 36-45 lat.
+
+## Tablice liczności i wnioski
+
+Poniżej przedstawiono tablice liczności dla kluczowych zmiennych demograficznych i organizacyjnych.
+
+```{r, results='asis'}
+stworz_tabele <- function(zmienna, nazwa_etykiety) {
+  data |>
+    group_by(!!sym(zmienna)) |>
+    summarise(N = n()) |>
+    mutate(Procent = paste0(round(N/sum(N)*100, 1), "%")) |>
+    kable(caption = paste("Rozkład zmiennej", nazwa_etykiety), 
+          booktabs = TRUE, col.names = c(nazwa_etykiety, "Liczebność", "Udział")) |>
+    kable_styling(latex_options = c("striped", "hold_position"))
+}
+
+cat("
+\\begin{table}[H]
+\\centering
+\\begin{minipage}{0.48\\textwidth}
+")
+stworz_tabele("DZIAŁ", "Dział")
+cat("
+\\end{minipage}
+\\hfill
+\\begin{minipage}{0.48\\textwidth}
+")
+stworz_tabele("STAŻ", "Staż pracy")
+cat("
+\\end{minipage}
+\\end{table}
+")
+cat("
+\\begin{table}[H]
+\\centering
+\\begin{minipage}{0.48\\textwidth}
+")
+stworz_tabele("CZY_KIER", "Funkcja kierownicza")
+cat("
+\\end{minipage}
+\\hfill
+\\begin{minipage}{0.48\\textwidth}
+")
+stworz_tabele("PŁEĆ", "Płeć")
+cat("
+\\end{minipage}
+\\end{table}
+")
+stworz_tabele("WIEK_KAT", "Kategoria wiekowa")
+```
+
+**Wnioski z analizy struktury:**
+
+1.  **Dział:** Największą grupę pracowników stanowi Dział Produktowy (PD), obejmujący niemal połowę badanej próby. Najmniejszy udział ma dział IT.
+
+2.  **Staż:** Zdecydowana większość pracowników posiada staż od 1 do 3 lat, co sugeruje umiarkowaną stabilność zatrudnienia.
+
+3.  **Funkcja:** Tylko niewielka część pracowników (poniżej 15%) pełni funkcje kierownicze.
+
+4.  **Płeć:** Zdecydowana większość pracowników to mężczyźni (ok. 65%).
+
+5.  **Wiek:** Firma opiera się na pracownikach w średnim wieku – ponad połowa osób mieści się w przedziale 36-45 lat.
+
+## Wizualizacja graficzna
+
+Na poniższym wykresie słupkowym przedstawiono udzielone odpowiedzi na pierwsze pytanie, które brzmi: „Jak bardzo zgadzasz się ze stwierdzeniem, że firma zapewnia odpowiednie wsparcie i materiały umożliwiające skuteczne wykorzystanie w praktyce wiedzy zdobytej w trakcie szkoleń?”.
+
+```{r}
+#| label: zad_1_4_1
+#| fig-cap: Pytanie 1 - Czy firma zapewnia odpowiednie wsparcie i materiały?
+ggplot(data, aes(x = PYT_1, fill = PYT_1)) +
+  geom_bar() +
+  scale_fill_brewer(palette = "RdYlGn") +
+  labs(x = "Odpowiedź", y = "Liczba osób") +
+  theme_minimal() + theme(legend.position = "none") +
+    scale_fill_manual(values = c(
+    "Zdec. nie" = "#d73027",
+    "Nie"       = "#fc8d59",
+    "Tak"       = "#91cf60",
+    "Zdec. tak" = "#1a9850"
+  ))
+```
+
+Wykres słupkowy wskazuje na relatywnie pozytywną ocenę zapewnianego przez firmę wsparcia oraz materiałów szkoleniowych. Największy słupek przypada na odpowiedzi twierdzące, choć zauważalna jest grupa osób niezdecydowanych („Brak zdania”).
+
+Na poniższym wykresie kołowym przedstawiono udzielone odpowiedzi na drugie pytanie: „Jak bardzo zgadzasz się ze stwierdzeniem, że firma oferuje szkolenia dostosowane do twoich potrzeb, wspierając twój rozwój zawodowy i szanse na awans?”.
+
+```{r}
+#| label: zad_1_4_2
+#| fig-cap: Pytanie 2 - Czy szkolenia są dobrze dostosowane do potrzeb?
+data %>%
+  count(PYT_2) %>%
+  ggplot(aes(x = "", y = n, fill = PYT_2)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  theme_void() +
+  labs(fill = "Odpowiedź") +
+    scale_fill_manual(values = c(
+    "Zdec. nie" = "#d73027",
+    "Nie"       = "#fc8d59",
+    "Tak"       = "#91cf60",
+    "Zdec. tak" = "#1a9850"
+  ))
+```
+
+Na powyższym wykresie widać lekką przewagę koloru zielonego (odpowiedzi „Tak”), co sugeruje, że programy szkoleniowe odpowiadają na potrzeby lekko więcej niż połowy pracowników. Reszta natomiast jest ze szkoleń niezadowolona.
+
+## Czy firma zapewnia odpowiednie wsparcie i materiały? Odpowiedzi według różnych grup
+
+Sporządzono tablice wielodzielcze dla par zmiennych, żeby porównać jak rozkładają się odpowiedzi na pytanie pierwsze w poszczególnych podgrupach pracowników.
+
+```{r}
+#| label: tbl-pyt1-dzial
+#| tbl-cap: "Odpowiedzi na pytanie pierwsze według działu"
+tab <- table(data$PYT_1, data$DZIAŁ)
+
+prop <- prop.table(tab, margin = 2)
+
+tab_mix <- matrix(
+  paste0(tab, " (", round(prop * 100, 1), "%)"),
+  nrow = nrow(tab)
+)
+
+dimnames(tab_mix) <- dimnames(tab)
+
+kable(tab_mix, booktabs = TRUE, longtable = FALSE) |>
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+**Wnioski:** We wszystkich działach dominuje odpowiedź „Tak”, co wskazuje, że pracownicy generalnie pozytywnie oceniają wsparcie i materiały szkoleniowe. W działach HR i IT jest stosunkowo najwięcej zadowolonych pracowników, a najmniej w dziale marketingu (MK).
+
+```{r}
+#| label: tbl-pyt1-staz
+#| tbl-cap: "Odpowiedzi na pytanie pierwsze według długości stażu"
+tab <- table(data$PYT_1, data$STAŻ)
+
+prop <- prop.table(tab, margin = 2)
+
+tab_mix <- matrix(
+  paste0(tab, " (", round(prop * 100, 1), "%)"),
+  nrow = nrow(tab)
+)
+
+dimnames(tab_mix) <- dimnames(tab)
+
+kable(tab_mix, booktabs = TRUE, longtable = FALSE) |>
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+**Wnioski:** W grupach o stażu pracy poniżej 1 roku i 1-3 lata dominują odpowiedzi pozytywne. Zdecydowanie stosunkowo najbardziej zadowoloną grupą są pracownicy o 1-3 letnim stażu pracy, natomiast najmniej zadowoleni są pracujący w firmie powyżej trzech lat.
+
+```{r}
+#| label: tbl-pyt1-kier
+#| tbl-cap: "Odpowiedzi na pytanie pierwsze według stanowiska kierowniczego"
+tab <- table(data$PYT_1, data$CZY_KIER)
+
+prop <- prop.table(tab, margin = 2)
+
+tab_mix <- matrix(
+  paste0(tab, " (", round(prop * 100, 1), "%)"),
+  nrow = nrow(tab)
+)
+
+dimnames(tab_mix) <- dimnames(tab)
+
+kable(tab_mix, booktabs = TRUE, longtable = FALSE) |>
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+**Wnioski:** Zarówno zwykli pracownicy, jak i ci na stanowisku kierowniczym są w większości zadowoleni ze wsparcia firmy i materiałów szkoleniowych. Stosunek odpowiedzi pozytywnych do negatywnych jest znacząco większy wśród kierowników.
+
+```{r}
+#| label: tbl-pyt1-plec
+#| tbl-cap: "Odpowiedzi na pytanie pierwsze według płci"
+tab <- table(data$PYT_1, data$PŁEĆ)
+
+prop <- prop.table(tab, margin = 2)
+
+tab_mix <- matrix(
+  paste0(tab, " (", round(prop * 100, 1), "%)"),
+  nrow = nrow(tab)
+)
+
+dimnames(tab_mix) <- dimnames(tab)
+
+kable(tab_mix, booktabs = TRUE, longtable = FALSE) |>
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+**Wnioski:** Zarówno kobiety jak i mężczyźni podobnie oceniają wsparcie i materiały szkoleniowe firmy. W obu grupach przeważają odpowiedzi pozytywne.
+
+```{r}
+#| label: tbl-pyt1-wiek
+#| tbl-cap: "Odpowiedzi na pytanie pierwsze według wieku"
+tab <- table(data$PYT_1, data$WIEK_KAT)
+
+prop <- prop.table(tab, margin = 2)
+
+tab_mix <- matrix(
+  paste0(tab, " (", round(prop * 100, 1), "%)"),
+  nrow = nrow(tab)
+)
+
+dimnames(tab_mix) <- dimnames(tab)
+
+kable(tab_mix, booktabs = TRUE, longtable = FALSE) |>
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+**Wnioski:** Wszystkie grupy wiekowe oceniają wsparcie i materiały szkoleniowe w większości pozytywnie. Najbardziej zadowoleni są pracownicy w wieku między 46 a 55 lat.
+
+## Czy szkolenia w firmie poprawiły się?
+
+Kilka tygodni później w firmie przeprowadzono cykl szkoleń indywidualnie dostosowanych do potrzeb konkretnych grup pracowników. Ankietowanych biorących udział w badaniu poproszono wówczas o ponowną odpowiedź na pytanie wsparcia w rozwoju zawodowym i możliwości awansu w firmie. Poniższa tablica wielodzielcza przedstawia jak pracownicy odpowiedzieli na to pytanie pierwotnie (odpowiedzi w wierszach) i jak po kilku tygodniach (odpowiedzi w kolumnach).
+
+```{r}
+#| label: tbl-pyt2-pyt3
+#| tbl-cap: "Pytanie 2 vs Pytanie 3"
+tab <- table(data$PYT_2, data$PYT_3)
+kable(tab, longtable = FALSE) |>
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+**Wnioski:** Po wprowadzeniu zmian w szkoleniach w firmie zaobserwowano spadek liczby odpowiedzi „zdecydowanie tak”, co wskazuje na zmniejszenie poziomu jednoznacznie pozytywnych ocen. Jednocześnie jednak zmniejszyła się liczba odpowiedzi skrajnie negatywnych, a część pracowników przesunęła swoje opinie w kierunku bardziej umiarkowanych („tak” lub „nie”). Oznacza to, że zmiany doprowadziły raczej do złagodzenia ocen i większej ostrożności w ich formułowaniu, niż do jednoznacznej poprawy postrzegania dopasowania szkoleń.
+
+## Wykresy mozaikowe
+
+```{r}
+data <- data |> 
+  mutate(
+    CZY_ZADOW = case_when(
+      PYT_2 %in% c("Zdec. nie", "Nie") ~ "Nie",
+      PYT_2 %in% c("Tak", "Zdec. tak") ~ "Tak"
+    ),
+    CZY_ZADOW = factor(CZY_ZADOW, levels = c("Nie", "Tak"))
+  )
+```
+
+Na podstawie zebranych odpowiedzi na pytanie drugie stworzono zmienną określającą, czy udzielona odpowiedź była pozytywna (odpowiedź „tak” lub „zdecydowanie tak”) lub negatywna (odpowiedź „nie” lub „zdecydowanie nie”). W oparciu o tą zmienną utworzono wykresy mozaikowe.
+
+```{r}
+#| label: mosaic_dzial
+#| fig-cap: Zadowolenie pracowników ze szkoleń według działu
+
+mosaic(~ DZIAŁ + CZY_ZADOW,
+       data = data,
+       shade = TRUE,
+       legend = TRUE,
+       labeling_args = list(rot_labels = c(left = 0),
+         offset_varnames = c(left = 2),
+         set_varnames = c(DZIAŁ = "Dział",
+                          CZY_ZADOW = "Czy zadowolony")))
+```
+
+**Wnioski:** Wykres mozaikowy nie wskazuje na istotne różnice w poziomie zadowolenia z oferowanych szkoleń między działami. Test chi-kwadrat ($p = 0.78$) nie wykazał istotnej zależności między działem a zadowoleniem pracowników ze szkoleń.
+
+```{r}
+#| label: mosaic_staz
+#| fig-cap: Zadowolenie pracowników ze szkoleń według stażu w firmie
+mosaic(~ STAŻ + CZY_ZADOW,
+       data = data,
+       shade = TRUE,
+       legend = TRUE,
+       labeling_args = list(rot_labels = c(left = 0),
+         offset_varnames = c(left = 2),
+         set_varnames = c(STAŻ = "Staż w firmie",
+                          CZY_ZADOW = "Czy zadowolony")))
+```
+
+**Wnioski:** Wykres mozaikowy nie wskazuje na istotne różnice w poziomie zadowolenia z oferowanych szkoleń między długością stażu w firmie. Test chi-kwadrat ($p = 0.41$) nie wykazał istotnej zależności między stażem a zadowoleniem pracowników ze szkoleń.
+
+```{r}
+#| label: mosaic_kier
+#| fig-cap: Zadowolenie pracowników ze szkoleń według stanowiska kierowniczego
+mosaic(~ CZY_KIER + CZY_ZADOW,
+       data = data,
+       shade = TRUE,
+       legend = TRUE,
+       labeling_args = list(rot_labels = c(left = 0),
+         offset_varnames = c(left = 2),
+         set_varnames = c(CZY_KIER = "Czy na stanowisku kierowniczym",
+                          CZY_ZADOW = "Czy zadowolony")))
+```
+
+**Wnioski:** Wykres mozaikowy nie wskazuje na istotne różnice w poziomie zadowolenia z oferowanych szkoleń między kierownikami a zwykłymi pracownikami. Test chi-kwadrat ($p = 0.77$) nie wykazał istotnej zależności między płcią a zadowoleniem pracowników ze szkoleń.
+
+```{r}
+#| label: mosaic_plec
+#| fig-cap: Zadowolenie pracowników ze szkoleń według płci
+mosaic(~ PŁEĆ + CZY_ZADOW,
+       data = data,
+       shade = TRUE,
+       legend = TRUE,
+       labeling_args = list(rot_labels = c(left = 0),
+         offset_varnames = c(left = 2),
+         set_varnames = c(PŁEĆ = "Płeć",
+                          CZY_ZADOW = "Czy zadowolony")))
+```
+
+**Wnioski:** Wykres mozaikowy nie wskazuje na istotne różnice w poziomie zadowolenia z oferowanych szkoleń między kobietami a mężczyznami. Test chi-kwadrat ($p = 0.63$) nie wykazał istotnej zależności między obejmowaniem stanowiska kierowniczego a zadowoleniem pracowników ze szkoleń.
+
+```{r}
+#| label: mosaic_wiek
+#| fig-cap: Zadowolenie pracowników ze szkoleń według wieku
+
+mosaic(~ WIEK_KAT + CZY_ZADOW,
+       data = data,
+       shade = TRUE,
+       legend = TRUE,
+       labeling_args = list(
+         rot_labels = c(left = 0),
+         offset_varnames = c(left = 2),
+         set_varnames = c(WIEK_KAT = "Wiek",
+                          CZY_ZADOW = "Czy zadowolony")))
+```
+
+**Wnioski:** Wykres mozaikowy nie wskazuje na istotne różnice w poziomie zadowolenia z oferowanych szkoleń między poszczególnymi grupami wiekowymi. Test chi-kwadrat ($p = 0.32$) nie wykazał istotnej zależności między wiekiem a zadowoleniem pracowników ze szkoleń.
+
+# **CZĘŚĆ II**
+
+## **Zadanie 2 i 3 — przedziały ufności**
+
+W tej części celem jest oszacowanie prawdopodobieństwa, że pracownik uważa szkolenia za dopasowane do swoich potrzeb. W tym celu wykorzystujemy dokładny przedział ufności Cloppera–Pearsona, który oparty jest na rozkładzie beta i zapewnia poprawne pokrycie nawet dla małych prób.
+
+Najpierw definiujemy funkcję wyznaczającą przedział. Przykład działania funkcji (clopper_pearson(0.05, k = 10, n = 20)):
+
+```{r}
+df <- read.csv("ankieta2.csv", sep=";", encoding="UTF-8")
+clopper_pearson <- function(alpha, k = NULL, n = NULL, data = NULL) {
+  if (!is.null(data)) {
+    k <- sum(data)
+    n <- length(data)
+  }
+  
+  if (k == 0) {
+    lower <- 0
+    upper <- 1 - (alpha/2)^(1/n)
+  } else if (k == n) {
+    lower <- (alpha/2)^(1/n)
+    upper <- 1
+  } else {
+    lower <- qbeta(alpha/2, k, n - k + 1)
+    upper <- qbeta(1 - alpha/2, k + 1, n - k)
+  }
+  
+  return(c(lower, upper))
+}
+```
+
+```{r}
+clopper_pearson(0.05, k = 10, n = 20)
+```
+
+Następnie konstruujemy zmienne binarne opisujące zadowolenie pracowników przed i po szkoleniach:
+
+```{r}
+df$CZY_ZADOW <- ifelse(df$PYT_2 > 0, 1, 0)
+df$CZY_ZADOW_2 <- ifelse(df$PYT_3 > 0, 1, 0)
+
+table(df$CZY_ZADOW)
+table(df$CZY_ZADOW_2)
+```
+
+Wyznaczamy przedziały ufności dla obu okresów:
+
+```{r}
+alpha <- 0.05
+
+k1 <- sum(df$CZY_ZADOW)
+n1 <- length(df$CZY_ZADOW)
+ci1 <- clopper_pearson(alpha, k1, n1)
+
+k2 <- sum(df$CZY_ZADOW_2)
+n2 <- length(df$CZY_ZADOW_2)
+ci2 <- clopper_pearson(alpha, k2, n2)
+
+wyniki_ci <- data.frame(
+  Okres = c("Przed szkoleniami", "Po szkoleniach"),
+  Sukcesy = c(k1, k2),
+  Liczebnosc = c(n1, n2),
+  Dolna_granica = c(ci1[1], ci2[1]),
+  Gorna_granica = c(ci1[2], ci2[2])
+)
+
+wyniki_ci
+```
+
+Aby lepiej zobrazować wyniki, przedstawiamy je również graficznie:
+
+```{r}
+plot(c(1,2), wyniki_ci$Dolna_granica,
+     ylim=c(0,1),
+     xlab="Okres",
+     ylab="Przedział ufności",
+     main="Porównanie przedziałów ufności",
+     xaxt="n",
+     pch=19)
+
+axis(1, at=c(1,2), labels=c("Przed","Po"))
+
+arrows(1, wyniki_ci$Dolna_granica[1], 1, wyniki_ci$Gorna_granica[1], length=0.1, angle=90, code=3)
+arrows(2, wyniki_ci$Dolna_granica[2], 2, wyniki_ci$Gorna_granica[2], length=0.1, angle=90, code=3)
+```
+
+Otrzymane przedziały ufności dla obu okresów są bardzo zbliżone i w dużym stopniu się pokrywają. Wynika to z faktu, że estymowane wartości prawdopodobieństwa zadowolenia pracowników w obu okresach są niemal identyczne.
+
+Oznacza to, że wprowadzone zmiany w programie szkoleniowym nie wpłynęły w istotny sposób na ocenę szkoleń przez pracowników.
+
+## **Zadanie 4 — porównanie przedziałów**
+
+W kolejnym kroku analizujemy własności różnych przedziałów ufności poprzez symulacje. Porównujemy:
+
+-   przedział Cloppera-Pearsona (dokładny),
+
+-   przedział Walda (asymptotyczny),
+
+-   przedział Wilsona (ulepszony asymptotyczny).
+
+```{r}
+wald_ci <- function(k, n){
+  p <- k/n
+  z <- 1.96
+  se <- sqrt(p*(1-p)/n)
+  c(p - z*se, p + z*se)
+}
+
+wilson_ci <- function(k, n){
+  prop.test(k, n)$conf.int
+}
+```
+
+Przeprowadzamy symulacje:
+
+```{r}
+simulate <- function(n, p, N=500){
+  
+  cp <- wald <- wilson <- numeric(N)
+  
+  for(i in 1:N){
+    x <- rbinom(n,1,p)
+    k <- sum(x)
+    
+    ci_cp <- clopper_pearson(0.05, k, n)
+    ci_wald <- wald_ci(k,n)
+    ci_wilson <- wilson_ci(k,n)
+    
+    cp[i] <- (ci_cp[1] <= p & p <= ci_cp[2])
+    wald[i] <- (ci_wald[1] <= p & p <= ci_wald[2])
+    wilson[i] <- (ci_wilson[1] <= p & p <= ci_wilson[2])
+  }
+  
+  c(mean(cp), mean(wald), mean(wilson))
+}
+```
+
+```{r}
+results <- data.frame()
+
+for(n in c(30,100,1000)){
+  for(p in c(0.1,0.5,0.9)){
+    res <- simulate(n,p)
+    results <- rbind(results,
+      data.frame(n=n,p=p,CP=res[1],Wald=res[2],Wilson=res[3]))
+  }
+}
+
+results
+```
+
+Wyniki przedstawiamy na wykresie:
+
+```{r}
+matplot(results[,3:5], type="b", pch=1,
+        col=c("black","red","blue"),
+        ylab="Pokrycie", main="Porównanie metod")
+legend("bottomright", legend=c("CP","Wald","Wilson"),
+       col=c("black","red","blue"), lty=1)
+```
+
+Analiza wyników wskazuje, że przedział Cloppera-Pearsona zapewnia największe pokrycie, jednak kosztem większej długości. Przedział Walda okazuje się najmniej stabilny, szczególnie dla małych prób. Najlepszym kompromisem jest przedział Wilsona, który łączy dobre pokrycie z relatywnie niewielką szerokością.
+
+# **CZĘŚĆ III**
+
+## **Zadanie 5 — weryfikacja hipotez**
+
+W tej części przeprowadzamy testy statystyczne dotyczące struktury pracowników oraz ich opinii o szkoleniach. W każdym przypadku formułujemy hipotezę zerową oraz alternatywną, a następnie na podstawie wartości *p-value* podejmujemy decyzję o jej odrzuceniu lub braku podstaw do odrzucenia.
+
+## **1. Udział kobiet w firmie**
+
+Na początku sprawdzamy, czy udział kobiet w firmie wynosi 0.5.
+
+```{r}
+k <- sum(df$PŁEĆ == "K")
+n <- nrow(df)
+
+k
+n
+k/n
+
+test1 <- binom.test(k, n, p = 0.5)
+test1
+```
+
+Wartość estymatora proporcji wynosi $\hat{p} = \frac{k}{n}$, co oznacza, że około `r round(k/n, 3)` pracowników stanowią kobiety.
+
+Na podstawie wyniku testu dokładnego analizujemy wartość *p-value*.
+
+Jeżeli *p-value* jest mniejsze od poziomu istotności 0.05, odrzucamy hipotezę zerową i uznajemy, że udział kobiet istotnie różni się od 0.5. W przeciwnym przypadku brak jest podstaw do odrzucenia tej hipotezy.
+
+Interpretując wynik w kontekście danych, możemy stwierdzić, czy struktura płci w firmie jest zrównoważona, czy też występuje wyraźna przewaga jednej z grup.
+
+## **2. Poziom zadowolenia pracowników**
+
+W kolejnym kroku badamy, czy co najmniej 70% pracowników uważa szkolenia za dostosowane do swoich potrzeb.
+
+```{r}
+k <- sum(df$CZY_ZADOW)
+n <- nrow(df)
+
+k
+n
+k/n
+test2 <- binom.test(k, n, p = 0.7, alternative = "greater")
+test2
+```
+
+Otrzymany estymator proporcji wskazuje, jaki odsetek pracowników jest zadowolony ze szkoleń.
+
+Jeżeli wartość *p-value* jest mała, możemy uznać, że udział zadowolonych pracowników jest istotnie większy niż 70%. W przeciwnym przypadku nie mamy podstaw do takiego stwierdzenia.
+
+Interpretując wynik, należy zwrócić uwagę, czy rzeczywisty poziom zadowolenia pracowników osiąga zakładany poziom, co może być istotne z punktu widzenia efektywności programów szkoleniowych.
+
+## **3. Stanowiska kierownicze a płeć**
+
+Sprawdzamy, czy prawdopodobieństwo zajmowania stanowiska kierowniczego jest takie samo dla kobiet i mężczyzn.
+
+```{r}
+k1 <- sum(df$PŁEĆ == "K" & df$CZY_KIER == "Tak")
+n1 <- sum(df$PŁEĆ == "K")
+
+k2 <- sum(df$PŁEĆ == "M" & df$CZY_KIER == "Tak")
+n2 <- sum(df$PŁEĆ == "M")
+
+k1; n1; k1/n1
+k2; n2; k2/n2
+test3 <- prop.test(c(k1, k2), c(n1, n2))
+test3
+```
+
+Porównujemy dwie proporcje: udział kobiet na stanowiskach kierowniczych oraz udział mężczyzn na takich stanowiskach.
+
+Jeżeli wartości tych proporcji są zbliżone, a test nie wykazuje istotności statystycznej, oznacza to, że brak jest podstaw do stwierdzenia różnic między płciami.
+
+Natomiast istotna różnica wskazywałaby na możliwe zróżnicowanie struktury zatrudnienia ze względu na płeć.
+
+## **4. Zadowolenie a płeć**
+
+Badamy, czy kobiety i mężczyźni różnią się pod względem oceny szkoleń.
+
+```{r}
+k1 <- sum(df$PŁEĆ == "K" & df$CZY_ZADOW == 1)
+n1 <- sum(df$PŁEĆ == "K")
+
+k2 <- sum(df$PŁEĆ == "M" & df$CZY_ZADOW == 1)
+n2 <- sum(df$PŁEĆ == "M")
+
+k1; n1; k1/n1
+k2; n2; k2/n2
+test4 <- prop.test(c(k1, k2), c(n1, n2))
+test4
+```
+
+Jeżeli uzyskane proporcje są podobne, oznacza to, że obie grupy oceniają szkolenia w podobny sposób.
+
+W przypadku istotnej różnicy można mówić o odmiennym postrzeganiu jakości szkoleń przez kobiety i mężczyzn.
+
+## **5. Praca w dziale HR a płeć**
+
+Na końcu analizujemy, czy kobiety częściej niż mężczyźni pracują w dziale HR.
+
+```{r}
+k1 <- sum(df$PŁEĆ == "K" & df$DZIAŁ == "HR")
+n1 <- sum(df$PŁEĆ == "K")
+
+k2 <- sum(df$PŁEĆ == "M" & df$DZIAŁ == "HR")
+n2 <- sum(df$PŁEĆ == "M")
+
+k1; n1; k1/n1
+k2; n2; k2/n2
+test5 <- prop.test(c(k1, k2), c(n1, n2), alternative = "greater")
+test5
+```
+
+Test jednostronny pozwala sprawdzić, czy udział kobiet w dziale HR jest większy niż udział mężczyzn.
+
+Jeżeli wynik jest istotny statystycznie, może to wskazywać na pewne różnice strukturalne w zatrudnieniu pomiędzy płciami.
+
+## **Zadanie 6 — analiza mocy testów**
+
+W ostatnim zadaniu analizujemy moc testów statystycznych, czyli prawdopodobieństwo odrzucenia hipotezy zerowej, gdy jest ona fałszywa.
+
+```{r}
+power_fun <- function(n, p_true){
+  
+  exact <- asymp <- numeric(300)
+  
+  for(i in 1:300){
+    x <- rbinom(n,1,p_true)
+    k <- sum(x)
+    
+    exact[i] <- (binom.test(k,n,0.9)$p.value < 0.05)
+    asymp[i] <- (prop.test(k,n,0.9)$p.value < 0.05)
+  }
+  
+  c(mean(exact), mean(asymp))
+}
+power_res <- data.frame()
+
+for(n in c(30,100,300)){
+  for(p in c(0.7,0.8,0.95)){
+    res <- power_fun(n,p)
+    power_res <- rbind(power_res,
+      data.frame(n=n,p=p,Exact=res[1],Asymp=res[2]))
+  }
+}
+
+power_res
+```
+
+Dla lepszej wizualizacji przedstawiamy wyniki na wykresie:
+
+```{r}
+matplot(power_res[,3:4], type="b", pch=1,
+        col=c("black","blue"),
+        ylab="Moc testu",
+        main="Porównanie mocy testów")
+legend("bottomright", legend=c("Test dokładny","Test asymptotyczny"),
+       col=c("black","blue"), lty=1)
+```
+
+Analizując wyniki, można zauważyć, że moc testów rośnie wraz ze wzrostem liczności próby oraz wraz z oddalaniem się rzeczywistego parametru od wartości hipotezy zerowej.
+
+Dla małych prób test dokładny jest bardziej stabilny, natomiast dla dużych liczności test asymptotyczny osiąga porównywalną lub większą moc.
