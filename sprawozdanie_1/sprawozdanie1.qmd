@@ -590,7 +590,7 @@ ggplot(plot_data, aes(x = n, y = Pokrycie, color = Metoda)) +
   ) +
   theme_minimal(base_size = 13)
 ```
-Analiza wyników wskazuje, że przedział Cloppera-Pearsona zapewnia największe pokrycie, jednak kosztem większej długości. Przedział Walda okazuje się najmniej stabilny, szczególnie dla małych prób. Najlepszym kompromisem jest przedział Wilsona, który łączy dobre pokrycie z relatywnie niewielką szerokością.
+Analiza wyników wskazuje, że przedział Cloppera-Pearsona zapewnia największe pokrycie, jednak kosztem większej długości przedziału. Przedział Walda okazuje się najmniej stabilny, szczególnie dla małych prób. Najlepszym kompromisem jest przedział Wilsona, który zachowuje deklarowany poziom ufności przy znacznie mniejszej szerokości niż metoda Cloppera-Pearsona, co pozwala na bardziej precyzyjne wnioskowanie przy zachowaniu bezpieczeństwa statystycznego.
 
 # Część III - weryfikacja hipotez i analiza mocy testu
 
@@ -711,7 +711,7 @@ W obu wersjach przeprowadzonego testu dostajemy p-value znacząco większe od po
 
 ## Analiza mocy testów
 
-W ostatnim etapie analizujemy moc testów statystycznych, czyli prawdopodobieństwo odrzucenia hipotezy zerowej, gdy jest ona fałszywa. Przeanalizujemy moc testu dokładnego oraz asymptotycznego w przypadku weryfikacji hipotezy zerowej $H_0:$ $p = 0.9$ przeciwko $p \neq 0.9$ dla poziomu istotności $\alpha = 0.05$. Uwzględnimy różne wartości alternatyw oraz rozmiary próby. Wyniki zostały przedstawione w poniższej tabeli.
+W ostatnim etapie analizujemy moc testów statystycznych, czyli prawdopodobieństwo odrzucenia hipotezy zerowej, gdy jest ona fałszywa. Przeanalizujemy moc testu dokładnego oraz asymptotycznego w przypadku weryfikacji hipotezy zerowej $H_0:$ $p = 0.9$ przeciwko $p \neq 0.9$ dla poziomu istotności $\alpha = 0.05$. Uwzględnimy różne wartości alternatyw oraz rozmiary próby. Wyniki zostały przedsawione na poniższych wykresach.
 
 ```{r}
 power_fun <- function(n, p_true){
@@ -723,40 +723,41 @@ power_fun <- function(n, p_true){
     k <- sum(x)
     
     exact[i] <- (binom.test(k,n,0.9)$p.value < 0.05)
-    asymp[i] <- (prop.test(k,n,0.9)$p.value < 0.05)
+    asymp[i] <- suppressWarnings(prop.test(k,n,0.9)$p.value < 0.05)
   }
   
   c(mean(exact), mean(asymp))
 }
-power_res <- data.frame()
+```
 
-for(n in c(30,100,300)){
-  for(p in c(0.7,0.8,0.95)){
-    res <- power_fun(n,p)
-    power_res <- rbind(power_res,
-      data.frame(n=n,p=p,Exact=res[1],Asymp=res[2]))
-  }
+```{r}
+power_res1 <- data.frame()
+power_res2 <- data.frame()
+
+p <- 0.95
+for(n in seq(50, 1000, 50)){
+  res <- power_fun(n,p)
+  power_res1 <- rbind(power_res1,
+    data.frame(n=n,p=p,Exact=res[1],Asymp=res[2]))
+}
+
+n <- 100
+for(p in seq(0.05, 0.95, 0.05)){
+  res <- power_fun(n,p)
+  power_res2 <- rbind(power_res2,
+    data.frame(n=n,p=p,Exact=res[1],Asymp=res[2]))
 }
 ```
 
 ```{r}
-#| label: tbl-moce
-#| tbl-cap: Porównanie mocy testu w przypadku testu dokładnego oraz asymptotycznego
-kable(power_res, booktabs = TRUE, longtable = FALSE,
-      col.names = c("n", "p", "dokładny", "asymptotyczny")) |>
-  kable_styling(latex_options = c("striped", "hold_position"))
-```
-
-Dla lepszej wizualizacji przedstawiamy wyniki na wykresie:
-
-```{r}
-#| label: fig-moce
-#| fig-cap: Porównanie mocy testów dokładnego i asymptotycznego
+#| label: fig-moce-dl
+#| fig-cap: Porównanie mocy testów dokładnego i asymptotycznego ze względu na długość próby
 
 df_plot <- data.frame(
-  x = 1:nrow(power_res),
-  dokladny = power_res[,3],
-  asymptotyczny = power_res[,4]
+  n = power_res1[,1],
+  x = 1:nrow(power_res1),
+  dokladny = power_res1[,3],
+  asymptotyczny = power_res1[,4]
 )
 
 df_long <- pivot_longer(df_plot,
@@ -764,13 +765,46 @@ df_long <- pivot_longer(df_plot,
                         names_to = "test",
                         values_to = "moc")
 
-ggplot(df_long, aes(x = x, y = moc, color = test)) +
+ggplot(df_long, aes(x = n, y = moc, color = test)) +
   geom_line() +
   geom_point() +
   scale_color_manual(values = c("black", "blue"),
                      labels = c("Test dokładny", "Test asymptotyczny")) +
   labs(
-    x = "Numer obserwacji",
+    x = "Liczność próby",
+    y = "Moc testu",
+    color = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom"
+  )
+```
+Na powyższym wykresie ustawiono wartość alternatywy równą $0.95$ i wyznaczano moc testów dla różnych liczności próby. Analizując wyniki, można zauważyć, że moc testów rośnie wraz ze wzrostem liczności próby. Dla małych prób test dokładny jest bardziej stabilny, natomiast dla dużych liczności test asymptotyczny osiąga porównywalną lub większą moc.
+
+```{r}
+#| label: fig-moce-p
+#| fig-cap: Porównanie mocy testów dokładnego i asymptotycznego ze względu na wartość alternatywy
+
+df_plot <- data.frame(
+  p = power_res2[,2],
+  x = 1:nrow(power_res2),
+  dokladny = power_res2[,3],
+  asymptotyczny = power_res2[,4]
+)
+
+df_long <- pivot_longer(df_plot,
+                        cols = c(dokladny, asymptotyczny),
+                        names_to = "test",
+                        values_to = "moc")
+
+ggplot(df_long, aes(x = p, y = moc, color = test)) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("black", "blue"),
+                     labels = c("Test dokładny", "Test asymptotyczny")) +
+  labs(
+    x = "Wartość alternatywy",
     y = "Moc testu",
     color = ""
   ) +
@@ -780,6 +814,4 @@ ggplot(df_long, aes(x = x, y = moc, color = test)) +
   )
 ```
 
-Analizując wyniki, można zauważyć, że moc testów rośnie wraz ze wzrostem liczności próby oraz wraz z oddalaniem się rzeczywistego parametru od wartości hipotezy zerowej.
-
-Dla małych prób test dokładny jest bardziej stabilny, natomiast dla dużych liczności test asymptotyczny osiąga porównywalną lub większą moc.
+Na powyższym wykresie ustawiono liczność próby równą $100$ i obliczono moc testów dla różnych wartości alternatyw. Oba testy mają bardzo wysoką moc dla wartości alternatywnych znacznie różniących się od $p = 0.9$. W pobliżu hipotezy zerowej moc testów spada, przy czym test asymptotyczny wykazuje nieco większą moc kosztem potencjalnie gorszej dokładności. Test dokładny jest bardziej konserwatywny, ale bardziej wiarygodny w sytuacjach granicznych.
