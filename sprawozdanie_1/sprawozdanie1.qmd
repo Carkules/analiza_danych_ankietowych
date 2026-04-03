@@ -375,66 +375,411 @@ mosaic(~ WIEK_KAT + CZY_ZADOW,
 
 # Część II
 
-## Funkcja przedziału ufności Cloppera-Pearsona
+## Konstruowanie i realizacja przedziałów ufności
 
-W celu precyzyjnej estymacji frakcji osób zadowolonych z poziomu oferowanych przez firmę szkoleń zaimplementowano funkcję wyznaczającą przedział ufności metodą Cloppera-Pearsona.
+W tej części celem jest oszacowanie prawdopodobieństwa, że pracownik uważa szkolenia za dopasowane do swoich potrzeb. W tym celu wykorzystujemy dokładny przedział ufności Cloppera–Pearsona, który oparty jest na rozkładzie beta i zapewnia poprawne pokrycie nawet dla małych prób.
+
+Najpierw definiujemy funkcję wyznaczającą przedział. Przykład działania funkcji (clopper_pearson(0.05, k = 10, n = 20)):
 
 ```{r}
-#| label: zad2_funkcja
-calc_cp <- function(alpha = 0.05, x = NULL, n = NULL, vec = NULL) {
-  if (!is.null(vec)) {
-    x <- sum(vec %in% c("Tak", "Zdec. tak"))
-    n <- length(vec)
+df <- data
+clopper_pearson <- function(alpha, k = NULL, n = NULL, data = NULL) {
+  if (!is.null(data)) {
+    k <- sum(data)
+    n <- length(data)
   }
-  L <- if(x == 0) 0 else qbeta(alpha/2, x, n - x + 1)
-  U <- if(x == n) 1 else qbeta(1 - alpha/2, x + 1, n - x)
-  return(c(Dolna = L, Gorna = U))
+  
+  if (k == 0) {
+    lower <- 0
+    upper <- 1 - (alpha/2)^(1/n)
+  } else if (k == n) {
+    lower <- (alpha/2)^(1/n)
+    upper <- 1
+  } else {
+    lower <- qbeta(alpha/2, k, n - k + 1)
+    upper <- qbeta(1 - alpha/2, k + 1, n - k)
+  }
+  
+  return(c(lower, upper))
 }
 ```
 
-## Przedziały ufności dla zadowolenia pracowników
+```{r}
+clopper_pearson(0.05, k = 10, n = 20)
+```
 
-Wyznaczono 95-procentowe przedziały ufności dla frakcji pracowników uważających szkolenia za dostosowane do ich potrzeb w dwóch różnych okresach.
+Następnie konstruujemy zmienne binarne opisujące zadowolenie pracowników przed i po szkoleniach:
 
 ```{r}
-#| label: zad3_obliczenia
-res2 <- calc_cp(alpha = 0.05, vec = data$PYT_2)
-res3 <- calc_cp(alpha = 0.05, vec = data$PYT_3)
+df <- df |> 
+  mutate(
+    CZY_ZADOW_2 = case_when(
+      PYT_3 %in% c("Zdec. nie", "Nie") ~ "Nie",
+      PYT_3 %in% c("Tak", "Zdec. tak") ~ "Tak"
+    ),
+    CZY_ZADOW_2 = factor(CZY_ZADOW_2, levels = c("Nie", "Tak"))
+  )
+```
 
-data.frame(
-  Okres = c("Okres 1 (PYT_2)", "Okres 2 (PYT_3)"),
-  Dolna = round(c(res2[1], res3[1]), 4),
-  Gorna = round(c(res2[2], res3[2]), 4)
-) %>%
-  kable(caption = "0.95 przedziały ufności Cloppera-Pearsona", booktabs = TRUE) %>%
+```{r}
+#| label: tbl-czy-zadow1
+#| tbl-cap: Zadowolenie ze szkoleń przed zmianami
+
+tab <- table(df$CZY_ZADOW) |> 
+  as.data.frame() |> 
+  setNames(c("Odpowiedź", "Liczba"))
+
+kable(tab, booktabs = TRUE, longtable = FALSE) |>
   kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
-Porównanie granic przedziałów ufności pozwala stwierdzić, czy różnice w wynikach są istotne statystycznie. Nakładanie się przedziałów sugerowałoby brak wyraźnej zmiany w postrzeganiu szkoleń między okresami.
-
-## Symulacja prawdopodobieństwa pokrycia
-
-Przeprowadzono symulację (1000 iteracji), aby porównać rzeczywiste prawdopodobieństwo pokrycia wartości parametru $p=0.5$ przez przedział Cloppera-Pearsona oraz przedział Walda.
-
 ```{r}
-#| label: zad4_symulacja
-set.seed(123)
-m <- 1000; n_s <- 200; p_t <- 0.5
-out <- replicate(m, {
-  x <- rbinom(1, n_s, p_t)
-  p_h <- x/n_s
-  cp <- calc_cp(0.05, x, n_s)
-  se <- sqrt(p_h*(1-p_h)/n_s)
-  wld <- c(p_h - 1.96*se, p_h + 1.96*se)
-  c(CP = (p_t >= cp[1] & p_t <= cp[2]), 
-    Wald = (p_t >= wld[1] & p_t <= wld[2]))
-})
+#| label: tbl-czy-zadow2
+#| tbl-cap: Zadowolenie ze szkoleń po zmianach
 
-rowMeans(out) %>%
-  enframe(name = "Metoda", value = "Prawd. pokrycia") %>%
-  kable(caption = "Wyniki symulacji pokrycia", booktabs = TRUE) %>%
+tab <- table(df$CZY_ZADOW_2) |> 
+  as.data.frame() |> 
+  setNames(c("Odpowiedź", "Liczba"))
+
+kable(tab, booktabs = TRUE, longtable = FALSE) |>
   kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
-**Podsumowanie i wnioski z symulacji:**
-Wyniki symulacji jednoznacznie wskazują, że metoda **Cloppera-Pearsona** zachowuje założony poziom ufności (nie spada poniżej 0.95). Metoda Walda jest mniej stabilna, co potwierdza, że w profesjonalnych raportach ankietowych należy preferować metody dokładne.
+Wyznaczamy przedziały ufności dla obu okresów:
+```{r}
+alpha <- 0.05
+
+k1 <- sum(df$CZY_ZADOW == "Tak")
+n1 <- length(df$CZY_ZADOW)
+ci1 <- clopper_pearson(alpha, k1, n1)
+
+k2 <- sum(df$CZY_ZADOW_2 == "Tak")
+n2 <- length(df$CZY_ZADOW_2)
+ci2 <- clopper_pearson(alpha, k2, n2)
+
+wyniki_ci <- data.frame(
+  Okres = c("Przed szkoleniami", "Po szkoleniach"),
+  Sukcesy = c(k1, k2),
+  Liczebnosc = c(n1, n2),
+  Dolna_granica = c(ci1[1], ci2[1]),
+  Gorna_granica = c(ci1[2], ci2[2])
+)
+```
+
+```{r}
+#| label: tbl-przedzialy
+#| tbl-cap: Porównanie przedziałów ufności przed i po szkoleniach
+
+kable(wyniki_ci, booktabs = TRUE, longtable = FALSE,   
+      col.names = c("Okres badania", "Liczba sukcesów", "Liczebność próby",
+                "Dolna granica CI", "Górna granica CI")) |>
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+Aby lepiej zobrazować wyniki, przedstawiamy je również graficznie:
+
+```{r}
+#| label: fig-porownanie-ci
+#| fig-cap: Porównanie przedziałów ufności
+wyniki_ci$proporcja <- wyniki_ci$Sukcesy / wyniki_ci$Liczebnosc
+
+ggplot(wyniki_ci, aes(x = Okres, y = proporcja)) +
+  geom_point(size = 3) +
+  geom_errorbar(
+    aes(ymin = Dolna_granica, ymax = Gorna_granica),
+    width = 0.15,
+    linewidth = 0.8
+  ) +
+  ylim(0,1) +
+  labs(
+    x = "Okres",
+    y = "Proporcja odpowiedzi „Tak”",
+  ) +
+  theme_minimal(base_size = 13)
+```
+Otrzymane przedziały ufności dla obu okresów są bardzo zbliżone i w dużym stopniu się pokrywają. Wynika to z faktu, że estymowane wartości prawdopodobieństwa zadowolenia pracowników w obu okresach są do siebie dość zbliżone.
+
+Oznacza to, że wprowadzone zmiany w programie szkoleniowym nie wpłynęły w istotny sposób na ocenę szkoleń przez pracowników.
+
+## Porównanie przedziału ufności Cloppera-Pearsona z przedziałem Walda i Wilsona
+
+W kolejnym kroku analizujemy własności różnych przedziałów ufności poprzez symulacje. Porównujemy:
+
+-   przedział Cloppera-Pearsona (dokładny),
+
+-   przedział Walda (asymptotyczny),
+
+-   przedział Wilsona (ulepszony asymptotyczny).
+
+```{r}
+wald_ci <- function(k, n){
+  p <- k/n
+  z <- 1.96
+  se <- sqrt(p*(1-p)/n)
+  c(p - z*se, p + z*se)
+}
+
+wilson_ci <- function(k, n){
+  prop.test(k, n)$conf.int
+}
+```
+
+Przeprowadzamy symulacje:
+
+```{r}
+simulate <- function(n, p, N=500){
+  
+  cp <- wald <- wilson <- numeric(N)
+  
+  for(i in 1:N){
+    x <- rbinom(n,1,p)
+    k <- sum(x)
+    
+    ci_cp <- clopper_pearson(0.05, k, n)
+    ci_wald <- wald_ci(k,n)
+    ci_wilson <- wilson_ci(k,n)
+    
+    cp[i] <- (ci_cp[1] <= p & p <= ci_cp[2])
+    wald[i] <- (ci_wald[1] <= p & p <= ci_wald[2])
+    wilson[i] <- (ci_wilson[1] <= p & p <= ci_wilson[2])
+  }
+  
+  c(mean(cp), mean(wald), mean(wilson))
+}
+```
+
+```{r}
+results <- data.frame()
+
+for(n in c(30,100,1000)){
+  for(p in c(0.1,0.5,0.9)){
+    res <- simulate(n,p)
+    results <- rbind(results,
+      data.frame(n=n,p=p,CP=res[1],Wald=res[2],Wilson=res[3]))
+  }
+}
+```
+
+```{r}
+#| label: tbl-wyniki-symulacji
+#| tbl-cap: Wyniki symulacji przedziałów ufności
+kable(results, booktabs = TRUE, longtable = FALSE) |>
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+Wyniki przedstawiamy na wykresie:
+
+```{r}
+#| label: fig-porownanie-symulacji
+#| fig-cap: Porównanie metod estymacji przedziałów ufności
+plot_data <- results |>
+  mutate(n = 1:n()) |>
+  pivot_longer(
+    cols = 3:5,
+    names_to = "Metoda",
+    values_to = "Pokrycie"
+  )
+
+ggplot(plot_data, aes(x = n, y = Pokrycie, color = Metoda)) +
+  geom_line(linewidth = 1) +
+  geom_hline(yintercept = 0.95, linetype = "dashed") +
+  geom_point(size = 2) +
+  labs(
+    x = "Numer symulacji",
+    y = "Pokrycie"
+  ) +
+  theme_minimal(base_size = 13)
+```
+Analiza wyników wskazuje, że przedział Cloppera-Pearsona zapewnia największe pokrycie, jednak kosztem większej długości. Przedział Walda okazuje się najmniej stabilny, szczególnie dla małych prób. Najlepszym kompromisem jest przedział Wilsona, który łączy dobre pokrycie z relatywnie niewielką szerokością.
+
+# Część III - weryfikacja hipotez i analiza mocy testu
+
+## Weryfikacja hipotez
+
+W tej części przeprowadzamy testy statystyczne dotyczące struktury pracowników oraz ich opinii o szkoleniach. W każdym przypadku formułujemy hipotezę zerową oraz alternatywną, a następnie na podstawie wartości *p-value* podejmujemy decyzję o jej odrzuceniu lub braku podstaw do odrzucenia. Do przeprowadzania testów w R skorzystamy z funkcji binom.test oraz prop.test.
+
+### Udział kobiet w firmie
+
+Sprawdzimy, czy udział kobiet i mężczyzn w firmie jest równy. Hipotezy definiujemy jako prawdopodobieństwo, że w firmie pracuje kobieta wynosi $0.5$.
+
+- $H_0$: $p = 0.5$,
+
+- $H_1$: $p \neq 0.5$.
+
+```{r}
+k <- sum(df$PŁEĆ == "K")
+n <- nrow(df)
+
+test1 <- binom.test(k, n, p = 0.5, alternative="two.sided")
+test1
+```
+
+Wartość estymatora proporcji wynosi $\hat{p} = \frac{k}{n}$, co oznacza, że około `r round(k/n, 3)` pracowników stanowią kobiety. P-value przeprowadzonego testu jest mniejsze od założonego poziomu ufności $\alpha = 0.05$, stąd należy odrzucić hipotezę zerową. Formułujemy wniosek, że udział kobiet i mężczyzn w firmie nie jest równy.
+
+### Poziom zadowolenia pracowników ze szkoleń w pierwszym okresie
+
+W kolejnym kroku badamy, czy co najmniej $70\%$ pracowników uważa szkolenia za dostosowane do swoich potrzeb. Formułujemy hipotezy:
+
+- $H_0:$ $p < 0.7$ (prawdopodobieństwo, że pracownik uważa szkolenia za przystosowane do swoich potrzeb wynosi mniej niż $0.7$),
+
+- $H_1:$ $p \geq 0.7$.
+
+```{r}
+k <- sum(df$CZY_ZADOW == "Tak")
+n <- nrow(df)
+
+test2 <- binom.test(k, n, p = 0.7, alternative = "greater")
+test2
+```
+
+Otrzymany estymator proporcji wskazuje, jaki odsetek pracowników jest zadowolony ze szkoleń. P-value jest równe $1$, zatem jest istotnie większe od poziomu ufności $\alpha = 0.05$, stąd nie mamy podstaw do odrzucenia hipotezy zerowej. Stąd wnioskujemy, że prawdopodobieństwo, że pracownik uważa szkolenia za przystosowane do swoich potrzeb w pierwszym badanym okresie nie jest większe bądź równe $0.7$.
+
+### Zależność między płcią a zajmowaniem stanowiska kierowniczego
+
+Sprawdzamy, czy prawdopodobieństwo zajmowania stanowiska kierowniczego jest takie samo dla kobiet i mężczyzn. Niech $p_1$ oznacza prawdopodobieństwo, że kobieta zajmuje stanowisko kierownicze, a $p_2$ - prawdopodobieństwo, że mężczyzna zajmuje stanowisko kierownicze. Formułujemy hipotezy:
+
+- $H_0:$ $p_1 = p_2$
+
+- $H_1:$ $p_1 \neq p_2$.
+
+Wykonujemy test proporcji funkcją prop.test dwa razy. Najpierw zastosujemy poprawkę ciągłości Yatesa (argument funkcji correct ustawiamy na TRUE), a następnie bez niej (correct = FALSE).
+
+```{r}
+k1 <- sum(df$PŁEĆ == "K" & df$CZY_KIER == "Tak")
+n1 <- sum(df$PŁEĆ == "K")
+
+k2 <- sum(df$PŁEĆ == "M" & df$CZY_KIER == "Tak")
+n2 <- sum(df$PŁEĆ == "M")
+
+test3 <- prop.test(c(k1, k2), c(n1, n2), correct = TRUE)
+test3
+test31 <- prop.test(c(k1, k2), c(n1, n2), correct = FALSE)
+test31
+```
+
+Porównujemy dwie proporcje: udział kobiet na stanowiskach kierowniczych oraz udział mężczyzn na takich stanowiskach. W obu wersjach przeprowadzonego testu p-value jest znacząco większe od poziomu istotności $\alpha = 0.05$. Stąd nie mamy podstaw do odrzucenia hipotezy zerowej. Wnioskujemy, że prawdopodobieństwo obejmowania stanowiska kierowniczego jest takie samo dla obu płci.
+
+
+### Porównanie zadowolenia ze szkoleń kobiet i mężczyzn w pierwszym okresie
+
+Badamy, czy kobiety i mężczyźni różnią się pod względem oceny szkoleń. Niech $p_1$ i $p_2$ oznaczają prawdopodobieństwo, że odpowiednio kobieta i mężczyzna uważa szkolenia za przystosowane do swoich potrzeb. Formułujemy hipotezy:
+
+- $H_0:$ $p_1 = p_2$
+
+- $H_1:$ $p_1 \neq p_2$.
+
+Ponownie wykonujemy test proporcji z poprawką ciągłości Yatesa jak i bez.
+
+```{r}
+k1 <- sum(df$PŁEĆ == "K" & df$CZY_ZADOW == "Tak")
+n1 <- sum(df$PŁEĆ == "K")
+
+k2 <- sum(df$PŁEĆ == "M" & df$CZY_ZADOW == "Tak")
+n2 <- sum(df$PŁEĆ == "M")
+
+test4 <- prop.test(c(k1, k2), c(n1, n2), correct = TRUE)
+test4
+
+test41 <- prop.test(c(k1, k2), c(n1, n2), correct = FALSE)
+test41
+```
+
+W obydwu wariantach testu dostajemy p-value znacząco większe od poziomu istotności $\alpha = 0.05$, zatem nie ma podstaw do odrzucenia hipotezy zerowej. Stąd formułujemy wniosek, że prawdopodobieństwo zadowolenia ze szkoleń w pierwszym okresie nie różni się między płciami.
+
+### Czy w HR pracuje więcej kobiet niż mężczyzn?
+
+Na końcu analizujemy, czy kobiety częściej niż mężczyźni pracują w dziale HR. Niech $p_1$ i $p_2$ oznaczają, że losowo wybrana (odpowiednio) kobieta/mężczyzna pracuje w dziale HR. Formułujemy hipotezy
+
+- $H_0:$ $p_1 \leq p_2$
+
+- $H_1:$ $p_1 > p_2$.
+
+```{r}
+k1 <- sum(df$PŁEĆ == "K" & df$DZIAŁ == "HR")
+n1 <- sum(df$PŁEĆ == "K")
+
+k2 <- sum(df$PŁEĆ == "M" & df$DZIAŁ == "HR")
+n2 <- sum(df$PŁEĆ == "M")
+
+test5 <- prop.test(c(k1, k2), c(n1, n2), alternative = "greater", correct=TRUE)
+test5
+test51 <- prop.test(c(k1, k2), c(n1, n2), alternative = "greater", correct=FALSE)
+test51
+```
+
+W obu wersjach przeprowadzonego testu dostajemy p-value znacząco większe od poziomu istotności $\alpha = 0.05$, stąd nie ma podstaw do odrzucenia hipotezy zerowej. Zatem formułujemy wniosek, że prawdopodobieństwo, że kobieta pracuje w dziale HR nie jest większe od tego prawdopodobieństwa dla mężczyzn.
+
+## Analiza mocy testów
+
+W ostatnim etapie analizujemy moc testów statystycznych, czyli prawdopodobieństwo odrzucenia hipotezy zerowej, gdy jest ona fałszywa. Przeanalizujemy moc testu dokładnego oraz asymptotycznego w przypadku weryfikacji hipotezy zerowej $H_0:$ $p = 0.9$ przeciwko $p \neq 0.9$ dla poziomu istotności $\alpha = 0.05$. Uwzględnimy różne wartości alternatyw oraz rozmiary próby. Wyniki zostały przedstawione w poniższej tabeli.
+
+```{r}
+power_fun <- function(n, p_true){
+  
+  exact <- asymp <- numeric(300)
+  
+  for(i in 1:300){
+    x <- rbinom(n,1,p_true)
+    k <- sum(x)
+    
+    exact[i] <- (binom.test(k,n,0.9)$p.value < 0.05)
+    asymp[i] <- (prop.test(k,n,0.9)$p.value < 0.05)
+  }
+  
+  c(mean(exact), mean(asymp))
+}
+power_res <- data.frame()
+
+for(n in c(30,100,300)){
+  for(p in c(0.7,0.8,0.95)){
+    res <- power_fun(n,p)
+    power_res <- rbind(power_res,
+      data.frame(n=n,p=p,Exact=res[1],Asymp=res[2]))
+  }
+}
+```
+
+```{r}
+#| label: tbl-moce
+#| tbl-cap: Porównanie mocy testu w przypadku testu dokładnego oraz asymptotycznego
+kable(power_res, booktabs = TRUE, longtable = FALSE,
+      col.names = c("n", "p", "dokładny", "asymptotyczny")) |>
+  kable_styling(latex_options = c("striped", "hold_position"))
+```
+
+Dla lepszej wizualizacji przedstawiamy wyniki na wykresie:
+
+```{r}
+#| label: fig-moce
+#| fig-cap: Porównanie mocy testów dokładnego i asymptotycznego
+
+df_plot <- data.frame(
+  x = 1:nrow(power_res),
+  dokladny = power_res[,3],
+  asymptotyczny = power_res[,4]
+)
+
+df_long <- pivot_longer(df_plot,
+                        cols = c(dokladny, asymptotyczny),
+                        names_to = "test",
+                        values_to = "moc")
+
+ggplot(df_long, aes(x = x, y = moc, color = test)) +
+  geom_line() +
+  geom_point() +
+  scale_color_manual(values = c("black", "blue"),
+                     labels = c("Test dokładny", "Test asymptotyczny")) +
+  labs(
+    x = "Numer obserwacji",
+    y = "Moc testu",
+    color = ""
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom"
+  )
+```
+
+Analizując wyniki, można zauważyć, że moc testów rośnie wraz ze wzrostem liczności próby oraz wraz z oddalaniem się rzeczywistego parametru od wartości hipotezy zerowej.
+
+Dla małych prób test dokładny jest bardziej stabilny, natomiast dla dużych liczności test asymptotyczny osiąga porównywalną lub większą moc.
