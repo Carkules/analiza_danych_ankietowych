@@ -301,7 +301,13 @@ data <- data |>
     CZY_ZADOW = factor(CZY_ZADOW, levels = c("Nie", "Tak"))
   )
 ```
-Na podstawie zebranych odpowiedzi na pytanie drugie stworzono zmienną określającą, czy udzielona odpowiedź była pozytywna (odpowiedź „tak” lub „zdecydowanie tak”) lub negatywna (odpowiedź „nie” lub „zdecydowanie nie”). W oparciu o tą zmienną utworzono wykresy mozaikowe.
+Na podstawie zebranych odpowiedzi na pytanie drugie stworzono zmienną określającą, czy udzielona odpowiedź była pozytywna (odpowiedź „tak” lub „zdecydowanie tak”) lub negatywna (odpowiedź „nie” lub „zdecydowanie nie”). W oparciu o tą zmienną utworzono wykresy mozaikowe. W oparciu o nie spróbujemy stwierdzić, czy zadowolenie ze szkoleń jest zależne od działu, stażu, stanowiska kierowniczego, płci czy wieku. We wszystkich przypadkach formułujemy analogiczne hipotezy:
+
+- $H_0:$ zadowolenie ze szkoleń nie zależy od (działu, stażu, ...)
+
+- $H_1:$ zadowolenie ze szkoleń jest zależne od ...
+
+Do rozpatrzenia tych hipotez razem z wykresami mozaikowymi zostanie przeprowadzony test chi-kwadrat ($\chi^2$).
 ```{r}
 #| label: mosaic_dzial
 #| fig-cap: Zadowolenie pracowników ze szkoleń według działu
@@ -341,7 +347,7 @@ mosaic(~ CZY_KIER + CZY_ZADOW,
          set_varnames = c(CZY_KIER = "Czy na stanowisku kierowniczym",
                           CZY_ZADOW = "Czy zadowolony")))
 ```
-**Wnioski:** Wykres mozaikowy nie wskazuje na istotne różnice w poziomie zadowolenia z oferowanych szkoleń między kierownikami a zwykłymi pracownikami. Test chi-kwadrat ($p = 0.77$) nie wykazał istotnej zależności między płcią a zadowoleniem pracowników ze szkoleń.
+**Wnioski:** Wykres mozaikowy nie wskazuje na istotne różnice w poziomie zadowolenia z oferowanych szkoleń między kierownikami a zwykłymi pracownikami. Test chi-kwadrat ($p = 0.63$) nie wykazał istotnej zależności między obejmowaniem stanowiska kierowniczego a zadowoleniem pracowników ze szkoleń.
 
 ```{r}
 #| label: mosaic_plec
@@ -355,7 +361,7 @@ mosaic(~ PŁEĆ + CZY_ZADOW,
          set_varnames = c(PŁEĆ = "Płeć",
                           CZY_ZADOW = "Czy zadowolony")))
 ```
-**Wnioski:** Wykres mozaikowy nie wskazuje na istotne różnice w poziomie zadowolenia z oferowanych szkoleń między kobietami a mężczyznami. Test chi-kwadrat ($p = 0.63$) nie wykazał istotnej zależności między obejmowaniem stanowiska kierowniczego a zadowoleniem pracowników ze szkoleń.
+**Wnioski:** Wykres mozaikowy nie wskazuje na istotne różnice w poziomie zadowolenia z oferowanych szkoleń między kobietami a mężczyznami. Test chi-kwadrat ($p = 0.77$) nie wykazał istotnej zależności między płcią a zadowoleniem pracowników ze szkoleń.
 
 ```{r}
 #| label: mosaic_wiek
@@ -462,7 +468,8 @@ wyniki_ci <- data.frame(
   Sukcesy = c(k1, k2),
   Liczebnosc = c(n1, n2),
   Dolna_granica = c(ci1[1], ci2[1]),
-  Gorna_granica = c(ci1[2], ci2[2])
+  Gorna_granica = c(ci1[2], ci2[2]),
+  Dlugosc_przedzialu = c(ci1[2]-ci1[1], ci2[2]-ci2[1])
 )
 ```
 
@@ -470,9 +477,17 @@ wyniki_ci <- data.frame(
 #| label: tbl-przedzialy
 #| tbl-cap: Porównanie przedziałów ufności przed i po szkoleniach
 
-kable(wyniki_ci, booktabs = TRUE, longtable = FALSE,   
-      col.names = c("Okres badania", "Liczba sukcesów", "Liczebność próby",
-                "Dolna granica CI", "Górna granica CI")) |>
+wyniki_ci_tab <- data.frame(
+  Okres = c("Przed szkoleniami", "Po szkoleniach"),
+  Sukcesy = c(k1, k2),
+  Dolna_granica = c(ci1[1], ci2[1]),
+  Gorna_granica = c(ci1[2], ci2[2]),
+  Dlugosc_przedzialu = c(ci1[2]-ci1[1], ci2[2]-ci2[1])
+)
+
+kable(wyniki_ci_tab, booktabs = TRUE, longtable = FALSE,   
+      col.names = c("Okres badania", "Liczba sukcesów",
+                "Dolna granica CI", "Górna granica CI", "Długość przedziału")) |>
   kable_styling(latex_options = c("striped", "hold_position"))
 ```
 
@@ -497,9 +512,9 @@ ggplot(wyniki_ci, aes(x = Okres, y = proporcja)) +
   ) +
   theme_minimal(base_size = 13)
 ```
-Otrzymane przedziały ufności dla obu okresów są bardzo zbliżone i w dużym stopniu się pokrywają. Wynika to z faktu, że estymowane wartości prawdopodobieństwa zadowolenia pracowników w obu okresach są do siebie dość zbliżone.
+Otrzymane przedziały ufności dla obu okresów są bardzo zbliżone i w dużym stopniu się pokrywają. Wynika to z faktu, że estymowane wartości prawdopodobieństwa zadowolenia pracowników w obu okresach są do siebie dość zbliżone. Dodatkowo, długości przedziałów ufności istotnie się nie różnią.
 
-Oznacza to, że wprowadzone zmiany w programie szkoleniowym nie wpłynęły w istotny sposób na ocenę szkoleń przez pracowników.
+Sugeruje nam to brak dowodu na to, że wprowadzone zmiany w programie szkoleniowym wpłynęły w istotny sposób na ocenę szkoleń przez pracowników.
 
 ## Porównanie przedziału ufności Cloppera-Pearsona z przedziałem Walda i Wilsona
 
@@ -590,7 +605,7 @@ ggplot(plot_data, aes(x = n, y = Pokrycie, color = Metoda)) +
   ) +
   theme_minimal(base_size = 13)
 ```
-Analiza wyników wskazuje, że przedział Cloppera-Pearsona zapewnia największe pokrycie, jednak kosztem większej długości przedziału. Przedział Walda okazuje się najmniej stabilny, szczególnie dla małych prób. Najlepszym kompromisem jest przedział Wilsona, który zachowuje deklarowany poziom ufności przy znacznie mniejszej szerokości niż metoda Cloppera-Pearsona, co pozwala na bardziej precyzyjne wnioskowanie przy zachowaniu bezpieczeństwa statystycznego.
+Analiza wyników wskazuje, że przedział Cloppera-Pearsona zapewnia największe pokrycie, jednak kosztem większej długości przedziału. Przedział Walda okazuje się najmniej stabilny, szczególnie dla małych prób. Najlepszym kompromisem jest często przedział Wilsona, który zachowuje deklarowany poziom ufności przy znacznie mniejszej szerokości niż metoda Cloppera-Pearsona, co pozwala na bardziej precyzyjne wnioskowanie przy zachowaniu bezpieczeństwa statystycznego.
 
 # Część III - weryfikacja hipotez i analiza mocy testu
 
@@ -620,19 +635,19 @@ Wartość estymatora proporcji wynosi $\hat{p} = \frac{k}{n}$, co oznacza, że o
 
 W kolejnym kroku badamy, czy co najmniej $70\%$ pracowników uważa szkolenia za dostosowane do swoich potrzeb. Formułujemy hipotezy:
 
-- $H_0:$ $p < 0.7$ (prawdopodobieństwo, że pracownik uważa szkolenia za przystosowane do swoich potrzeb wynosi mniej niż $0.7$),
+- $H_0:$ $p \geq 0.7$ (prawdopodobieństwo, że pracownik uważa szkolenia za przystosowane do swoich potrzeb jest większe lub równe $0.7$),
 
-- $H_1:$ $p \geq 0.7$.
+- $H_1:$ $p < 0.7$.
 
 ```{r}
 k <- sum(df$CZY_ZADOW == "Tak")
 n <- nrow(df)
 
-test2 <- binom.test(k, n, p = 0.7, alternative = "greater")
+test2 <- binom.test(k, n, p = 0.7, alternative = "less")
 test2
 ```
 
-Otrzymany estymator proporcji wskazuje, jaki odsetek pracowników jest zadowolony ze szkoleń. P-value jest równe $1$, zatem jest istotnie większe od poziomu ufności $\alpha = 0.05$, stąd nie mamy podstaw do odrzucenia hipotezy zerowej. Stąd wnioskujemy, że prawdopodobieństwo, że pracownik uważa szkolenia za przystosowane do swoich potrzeb w pierwszym badanym okresie nie jest większe bądź równe $0.7$.
+Otrzymany estymator proporcji wskazuje, jaki odsetek pracowników jest zadowolony ze szkoleń. P-value jest istotnie mniejsze od poziomu ufności $\alpha = 0.05$, zatem należy odrzucić hipotezę zerową. Stąd wnioskujemy, że prawdopodobieństwo, że pracownik uważa szkolenia za przystosowane do swoich potrzeb w pierwszym badanym okresie jest istotnie mniejsze od $0.7$.
 
 ### Zależność między płcią a zajmowaniem stanowiska kierowniczego
 
