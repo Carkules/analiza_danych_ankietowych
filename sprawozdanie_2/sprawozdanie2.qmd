@@ -1,0 +1,22 @@
+---
+title: "sprawozdanie2"
+format: pdf
+editor: visual
+---
+
+## Zadanie 1
+```{r}
+library(binom)
+library(tidyverse)
+library(MultinomialCI)
+```
+
+```{r}
+zadow <- c(14, 17, 40, 100, 29)
+
+przedzial1 <- binom.confint(zadow, 200, 0.99)
+przedzial1
+
+przedzial2 <- multinomialCI(zadow, 0.01)
+przedzial2
+```
