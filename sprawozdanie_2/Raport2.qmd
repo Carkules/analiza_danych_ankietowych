@@ -1,0 +1,241 @@
+---
+title: "Analiza Danych Ankietowych - Raport nr 2"
+subtitle: "Analiza skuteczności programów szkoleniowych"
+author: "Jakub Bartłomowicz, Konrad Słotta"
+date: "`r Sys.Date()`"
+format: 
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    geometry: "left=2cm,right=2cm,top=2cm,bottom=2cm"
+execute:
+  echo: false
+  warning: false
+  message: false
+  tidy: true
+---
+
+```{r}
+# Wczytanie wymaganych bibliotek
+library(dplyr)
+library(knitr)
+library(DescTools)
+
+# Wczytanie danych z pliku
+dane <- read.csv2("ankieta2.csv")
+
+# Przekształcenie danych - kategoryzacja wieku i zadowolenia
+dane <- dane %>%
+  mutate(
+    # Kategoryzacja zmiennej WIEK zdefiniowana w części I
+    WIEK_KAT = case_when(
+      WIEK <= 35 ~ "do 35 lat",
+      WIEK >= 36 & WIEK <= 45 ~ "36-45 lat",
+      WIEK >= 46 & WIEK <= 55 ~ "46-55 lat",
+      WIEK > 55 ~ "powyżej 55 lat"
+    ),
+    WIEK_KAT = factor(WIEK_KAT, levels = c("do 35 lat", "36-45 lat", 
+                                           "46-55 lat", "powyżej 55 lat")),
+    # Definicja zmiennej CZY_ZADOW na podstawie PYT_2
+    CZY_ZADOW = case_when(
+      PYT_2 > 0 ~ "Tak",
+      PYT_2 < 0 ~ "Nie"
+    ),
+    CZY_ZADOW = factor(CZY_ZADOW, levels = c("Nie", "Tak")),
+    CZY_KIER = factor(CZY_KIER, levels = c("Nie", "Tak")),
+    PŁEĆ = factor(PŁEĆ, levels = c("K", "M")),
+    STAŻ = factor(STAŻ)
+  )
+```
+
+# Część I
+
+## Zadanie 1 - Przedział ufności dla wektora prawdopodobieństw
+
+W losowej próbie $n = 200$ pracowników, wybranej w oparciu o schemat losowania prostego ze zwracaniem, badano opinie na temat skuteczności szkolenia „Efektywna komunikacja w zespole”. Uzyskano następujące liczebności eksperymentalne w poszczególnych kategoriach oceny: 14, 17, 40, 100 oraz 29. Celem analizy jest wyznaczenie symultanicznego przedziału ufności na poziomie ufności $1 - \alpha = 0.95$ dla wielomianowego wektora prawdopodobieństw $\mathbf{p} = [p_1, p_2, p_3, p_4, p_5]^T$.
+
+Do wyznaczenia przedziałów ufności zastosowano klasyczną metodę Goodmana, opierającą się na asymptotycznym rozkładzie statystyki $\chi^2$.
+
+```{r}
+x_zad1 <- c(14, 17, 40, 100, 29)
+poziomy_zad1 <- c("Bardzo niezadowoleni", "Niezadowoleni", 
+                  "Nie ma zdania", "Zadowoleni", "Bardzo zadowoleni")
+
+przedzialy_wielomianowe <- MultinomCI(x_zad1, conf.level = 0.95, method = "goodman")
+rownames(przedzialy_wielomianowe) <- poziomy_zad1
+
+kable(przedzialy_wielomianowe, digits = 4, 
+      caption = "Symultaniczne przedzialy ufnosci Goodmana na poziomie 0.95")
+```
+
+**Interpretacja statystyczna:** Otrzymane przedziały określają z 95-procentową ufnością zakres, w jakim znajdują się rzeczywiste, brzegowe prawdopodobieństwa sukcesu dla poszczególnych opinii w całej populacji pracowników. Analiza uzyskanych granic pozwala stwierdzić, że struktura ocen charakteryzuje się silną asymetrią lewostronną. Cecha zadowolenia jest w badanej populacji dominująca — dolna granica przedziału ufności dla kategorii „Zadowoleni” wynosi aż $0.4087$, co świadczy o wysokiej, powtarzalnej ocenie efektywności szkolenia.
+
+## Zadanie 2 - Implementacja funkcji testowych dla rozkładu wielomianowego
+
+W celu weryfikacji hipotez o zadanej strukturze prawdopodobieństw $H_{0}: p = p_{0}$ przeciwko hipotezie alternatywnej $H_{1}: p \neq p_{0}$ dla danych z rozkładu wielomianowego, zaimplementowano autonomiczną funkcję w środowisku `R`. Funkcja ta przyjmuje jako argumenty wektor empirycznych liczebności $x$ oraz wektor zakładanych prawdopodobieństw $p_0$.
+
+Wyznaczanie poziomu krytycznego ($p\text{-value}$) opiera się na asymptotycznych właściwościach dwóch statystyk testowych o rozkładzie $\chi^2$ z liczbą stopni swobody $df = k - 1$, gdzie $k$ oznacza liczbę kategorii:
+
+1.  Statystyka chi-kwadrat Pearsona ($X^2$):
+
+$$X^2 = \sum_{i=1}^{k} \frac{(x_i - n \cdot p_{0i})^2}{n \cdot p_{0i}}$$
+
+2.  Statystyka chi-kwadrat największej wiarogodności ($G^2$):
+
+$$G^2 = 2 \sum_{i=1}^{k} x_i \ln\left(\frac{x_i}{n \cdot p_{0i}}\right)$$
+
+```{r}
+# Implementacja funkcji obliczającej p-value (wywoływana w zadaniu 3)
+p_value_wielomianowy <- function(x, p0) {
+  n <- sum(x)
+  k <- length(x)
+  E <- n * p0
+  
+  # 1. Test Pearsona
+  X2 <- sum((x - E)^2 / E)
+  p_val_pearson <- 1 - pchisq(X2, df = k - 1)
+  
+  # 2. Test ilorazu wiarogodności
+  G2 <- 2 * sum(x * ifelse(x == 0, 0, log(x / E)))
+  p_val_nw <- 1 - pchisq(G2, df = k - 1)
+  
+  return(data.frame(
+    Test = c("Chi-kwadrat Pearsona ($X^2$)", "Ilorazu Wiarogodności ($G^2$)"),
+    Statystyka = c(X2, G2),
+    P_value = c(p_val_pearson, p_val_nw)
+  ))
+}
+```
+
+Zdefiniowana powyżej funkcja automatycznie obsługuje potencjalne problemy numeryczne (klauzula ifelse dla kategorii o zerowej liczności empirycznej) i zwraca ujednoliconą tablicę zawierającą wartości statystyk oraz odpowiadające im poziomy istotności $p\text{-value}$.
+
+## Zadanie 3 - Weryfikacja hipotezy o rozkładzie równomiernym
+
+Weryfikujemy hipotezę, że dla pracowników zatrudnionych w Dziale Produktowym ($\text{DZIAŁ} = \text{"PD"}$) rozkład odpowiedzi na pierwsze pytanie ankietowe $\text{PYT\_1}$ jest równomierny. Formalnie oznacza to weryfikację hipotezy zerowej $H_0$ przeciwko hipotezie alternatywnej $H_1$ postaci:
+
+$$H_{0}: p_{1} = p_{2} = p_{3} = p_{4} = p_{5} = 0.2$$
+
+$$H_1: \exists \, i \in \{1, 2, 3, 4, 5\} \quad \text{taki, że} \quad p_i \neq 0.2$$
+
+Do weryfikacji powyższego układu hipotez wykorzystano napisaną w ramach Zadania 2 funkcję realizującą asymptotyczne testy zgodności. Przyjęto nominalny poziom istotności $\alpha = 0.05$.
+
+```{r}
+dane_pd <- dane %>% filter(DZIAŁ == "PD")
+odpowiedzi_pyt1 <- table(factor(dane_pd$PYT_1, levels = c(-2, -1, 0, 1, 2)))
+x_pd <- as.numeric(odpowiedzi_pyt1)
+p0_unif <- rep(0.2, 5)
+
+wynik_zad3 <- p_value_wielomianowy(x_pd, p0_unif)
+kable(wynik_zad3, digits = 4, escape = FALSE,
+      caption = "Wyniki testów zgodności dla Działu Produktowego (PD)")
+```
+
+**Wnioski i konkluzja:** Obliczona wartość poziomu krytycznego ($p\text{-value}$) dla obu niezależnych statystyk asymptotycznych jest drastycznie mniejsza od przyjętego poziomu istotności $\alpha = 0.05$ ($p\text{-value} < 0.0001$). Stanowi to jednoznaczną i silną podstawę odrzucenia hipotezy zerowej $H_0$ na rzecz hipotezy alternatywnej $H_1$. Rozkład empiryczny odpowiedzi na zmienną $\text{PYT\_1}$ w Dziale Produktowym wykazuje istotne statystycznie odstępstwo od struktury równomiernej, koncentrując się wokół ocen pozytywnych.
+
+# Część II
+
+## Zadanie 4 - Analiza tablic wielodzielczych (Zmienne PŁEĆ i CZY_KIER)
+
+Przedmiotem analizy jest weryfikacja hipotezy o niezależności zmiennej dychotomicznej określającej płeć pracownika ($\text{PŁEĆ} \in \{\text{"K"}, \text{"M"}\}$) oraz zmiennej informującej o pełnieniu funkcji kierowniczej ($\text{CZY\_KIER} \in \{\text{"Tak"}, \text{"Nie"}\}$). Z uwagi na naturę danych oraz strukturę macierzy kontyngencji $2 \times 2$, zastosowano klasyczny, dokładny test Fishera oparty na rozkładzie hipergeometrycznym.
+
+Układ hipotez przyjmuje postać:
+
+$$H_0: \text{Zmienne } \text{PŁEĆ} \text{ i } \text{CZY\_KIER} \text{ są niezależne}$$
+
+$$H_1: \text{Zmienne } ('PŁEĆ') \text{ i } \text{CZY\_KIER} \text{ są zależne}$$
+
+```{r}
+tab_plec_kier <- table(dane$PŁEĆ, dane$CZY_KIER)
+test_fishera_zad4 <- fisher.test(tab_plec_kier)
+
+wynik_zad4 <- data.frame(
+  "Rodzaj_testu" = "Dokładny test Fishera",
+  "Statystyka_OR" = test_fishera_zad4$estimate,
+  "P_value" = test_fishera_zad4$p.value
+)
+kable(wynik_zad4, digits = 4, row.names = FALSE, 
+      caption = "Wynik dokładnego testu Fishera dla niezależności płci i stanowiska")
+```
+
+### Analiza prawdopodobieństwa warunkowego na stanowiskach kierowniczych
+
+Uzyskany poziom krytyczny $p\text{-value} \approx 0.6393$ znacznie przekracza próg $\alpha = 0.05$, co oznacza brak podstaw do odrzucenia hipotezy zerowej $H_0$. Zjawisko awansu na stanowisko kierownicze w strukturach firmy jest zatem niezależne od płci pracownika, co z probabilistycznego punktu widzenia zapisujemy jako:
+
+$$P(\text{CZY\_KIER} = \text{"Tak"} \mid \text{PŁEĆ} = \text{"K"}) = P(\text{CZY\_KIER} = \text{"Tak"} \mid \text{PŁEĆ} = \text{"M"}) = P(\text{CZY\_KIER} = \text{"Tak"})$$
+
+Należy jednak precyzyjnie odpowiedzieć na fundamentalne pytanie: Czy wynika stąd, że na stanowisku kierowniczym kobiety i mężczyźni pracują z tym samym prawdopodobieństwem? Czyli czy zachodzi równość:
+
+$$P(\text{PŁEĆ} = \text{"K"} \mid \text{CZY\_KIER} = \text{"Tak"}) = 0.5 \quad ?$$
+
+Z matematycznego punktu widzenia odpowiedź brzmi: Nie. Na mocy twierdzenia Bayesa oraz wykazanej niezależności zmiennych, rozkład warunkowy jest determinowany wyłącznie przez brzegowy rozkład płci w populacji ogólnej:
+
+$$P(\text{PŁEĆ} = \text{"K"} \mid \text{CZY\_KIER} = \text{"Tak"}) = \frac{P(\text{CZY\_KIER} = \text{"Tak"} \mid \text{PŁEĆ} = \text{"K"}) \cdot P(\text{PŁEĆ} = \text{"K"})}{P(\text{CZY\_KIER} = \text{"Tak"})} = P(\text{PŁEĆ} = \text{"K"})$$
+
+Z wcześniejszych analiz wiemy, że mężczyźni stanowią około $65\%$ struktury zatrudnienia ($P(\text{PŁEĆ} = \text{"M"}) \approx 0.65$). Skoro proces selekcji na stanowiska kierownicze jest niezależny od płci, to struktura kadry zarządzającej powiela tę dysproporcję. Zweryfikujmy to formalnym testem dwumianowym dla frakcji sukcesu pośród podpróby kierowników ($H_0: p = 0.5$):
+
+```{r}
+kierownicy <- dane %>% filter(CZY_KIER == "Tak")
+b_test <- binom.test(x = sum(kierownicy$PŁEĆ == "K"), n = nrow(kierownicy), p = 0.5)
+
+wynik_binom <- data.frame(
+  "Liczba_kobiet" = sum(kierownicy$PŁEĆ == "K"),
+  "Liczba_kierownikow" = nrow(kierownicy),
+  "Proporcja_empiryczna" = b_test$estimate,
+  "P_value" = b_test$p.value
+)
+kable(wynik_binom, digits = 4, row.names = FALSE, 
+      caption = "Test dwumianowy dla proporcji płci wśród kadry kierowniczej")
+```
+
+Niski poziom krytyczny ($p\text{-value} \approx 0.0115$) nakazuje odrzucić hipotezę o równości szans ($p=0.5$). Przewaga mężczyzn na stanowiskach kierowniczych jest istotna statystycznie, lecz wynika ona bezpośrednio ze struktury zatrudnienia, a nie z dyskryminacji w procesie awansu.
+
+## Zadanie 5 - Test Freemana-Haltona dla układów wielodzielczych
+
+Rozszerzając analizę wielowymiarową, poddano weryfikacji szereg hipotez zerowych o niezależności czynników demograficzno-organizacyjnych oraz wskaźników zadowolenia ze szkoleń. W przypadkach, gdy wymiary macierzy kontyngencji przekraczały układ $2 \times 2$, zastosowano uogólnienie testu Fishera — test Freemana-Haltona. Poziomy krytyczne wyznaczono metodą symulacji Monte Carlo (liczba replikacji $B = 20\,000$).
+
+Analizę satysfakcji opinii przeprowadzono w dwóch ujęciach metodologicznych:
+
+-   Na oryginalnej, dyskretnej skali pięciostopniowej (zmienna $\text{PYT\_2} \in \{-2, -1, 0, 1, 2\}$).
+
+-   Na zagregowanej zmiennej dychotomicznej (zmienna $\text{CZY\_ZADOW} \in \{\text{"Tak"}, \text{"Nie"}\}$)
+
+```{r}
+wykonaj_test_fh <- function(zmienna1, zmienna2, zbior_danych) {
+  df_temp <- zbior_danych %>% filter(!is.na(!!sym(zmienna1)), !is.na(!!sym(zmienna2)))
+  tablica <- table(df_temp[[zmienna1]], df_temp[[zmienna2]])
+  test <- fisher.test(tablica, simulate.p.value = TRUE, B = 20000)
+  return(test$p.value)
+}
+
+hipotezy <- list(
+  c("CZY_KIER", "WIEK_KAT", "a) CZY_KIER x WIEK_KAT"),
+  c("CZY_KIER", "STAŻ", "b) CZY_KIER x STAŻ"),
+  c("PYT_2", "CZY_KIER", "c) PYT_2 x CZY_KIER"),
+  c("PYT_2", "STAŻ", "d) PYT_2 x STAŻ"),
+  c("PYT_2", "PŁEĆ", "e) PYT_2 x PŁEĆ"),
+  c("PYT_2", "WIEK_KAT", "f) PYT_2 x WIEK_KAT"),
+  c("CZY_ZADOW", "CZY_KIER", "c.2) CZY_ZADOW x CZY_KIER"),
+  c("CZY_ZADOW", "STAŻ", "d.2) CZY_ZADOW x STAŻ"),
+  c("CZY_ZADOW", "PŁEĆ", "e.2) CZY_ZADOW x PŁEĆ"),
+  c("CZY_ZADOW", "WIEK_KAT", "f.2) CZY_ZADOW x WIEK_KAT")
+)
+
+wyniki_zad5 <- data.frame(
+  "Badany_Układ_Zmiennych" = sapply(hipotezy, `[`, 3),
+  "P_value" = sapply(hipotezy, function(para) wykonaj_test_fh(para[1], para[2], dane))
+)
+
+wyniki_zad5$Decyzja = ifelse(wyniki_zad5$P_value < 0.05, 
+                             "Odrzucenie H0 (zmienne zależne)", 
+                             "Brak podstaw do odrzucenia H0 (niezależne)")
+
+kable(wyniki_zad5, digits = 4, escape = FALSE,
+      caption = "Zbiorcze wyniki testów niezależności Freemana-Haltona")
+```
+
+**Synteza i wnioski porównawcze:**
+
+Analiza empiryczna ujawnia wysoki stopień jednorodności opinii pracowników. Prawie wszystkie poziomy krytyczne $p\text{-value}$ jednoznacznie przekraczają próg istotności $\alpha = 0.05$, co dowodzi statystycznej niezależności zadowolenia ze szkoleń od czynników socjodemograficznych (płeć, wiek) czy pozycji w strukturze organizacyjnej (staż, stanowisko).
+
+Porównując ujęcie wielokrotne ($\text{PYT\_2}$) oraz dychotomiczne ($\text{CZY\_ZADOW}$), należy wskazać, że transformacja i agregacja danych nie wpłynęły na zmianę finalnych decyzji weryfikacyjnych — we wszystkich przypadkach utrzymano wnioski o braku zależności. Z punktu widzenia teorii statystyki, redukcja skali pomiarowej (z pięciostopniowej do binarnej) skutkuje utratą części informacji o wariancji cechy, lecz w tym konkretnym badaniu uodporniła analizę na fluktuacje liczebności w skrajnych kategoriach, dostarczając tożsame i stabilne konkluzje o powszechnym, jednolitym zadowoleniu pracowników.
