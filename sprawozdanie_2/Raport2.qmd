@@ -143,7 +143,7 @@ Układ hipotez przyjmuje postać:
 
 $$H_0: \text{Zmienne } \text{PŁEĆ} \text{ i } \text{CZY\_KIER} \text{ są niezależne}$$
 
-$$H_1: \text{Zmienne } ('PŁEĆ') \text{ i } \text{CZY\_KIER} \text{ są zależne}$$
+$$H_1: \text{Zmienne } \text{PŁEĆ} \text{ i } \text{CZY\_KIER} \text{ są zależne}$$
 
 ```{r}
 tab_plec_kier <- table(dane$PŁEĆ, dane$CZY_KIER)
@@ -239,3 +239,438 @@ kable(wyniki_zad5, digits = 4, escape = FALSE,
 Analiza empiryczna ujawnia wysoki stopień jednorodności opinii pracowników. Prawie wszystkie poziomy krytyczne $p\text{-value}$ jednoznacznie przekraczają próg istotności $\alpha = 0.05$, co dowodzi statystycznej niezależności zadowolenia ze szkoleń od czynników socjodemograficznych (płeć, wiek) czy pozycji w strukturze organizacyjnej (staż, stanowisko).
 
 Porównując ujęcie wielokrotne ($\text{PYT\_2}$) oraz dychotomiczne ($\text{CZY\_ZADOW}$), należy wskazać, że transformacja i agregacja danych nie wpłynęły na zmianę finalnych decyzji weryfikacyjnych — we wszystkich przypadkach utrzymano wnioski o braku zależności. Z punktu widzenia teorii statystyki, redukcja skali pomiarowej (z pięciostopniowej do binarnej) skutkuje utratą części informacji o wariancji cechy, lecz w tym konkretnym badaniu uodporniła analizę na fluktuacje liczebności w skrajnych kategoriach, dostarczając tożsame i stabilne konkluzje o powszechnym, jednolitym zadowoleniu pracowników.
+
+## Zadanie 6 - Test niezależności chi-kwadrat dla zmiennych PYT_2 i CZY_KIER
+W celu weryfikacji hipotezy o niezależności stopnia zadowolenia ze szkolenia w kontekście dopasowania do indywidualnych potrzeb (zmienna $\text{PYT\_2}$) oraz zajmowanego stanowiska (zmienna $\text{CZY\_KIER}$), zastosowano test niezależności chi-kwadrat Pearsona. Wyniki testu przedstawiono w tabeli poniżej.
+```{r}
+tab_zad6 <- table(dane$PYT_2, dane$CZY_KIER)
+
+test_chi_zad6 <- chisq.test(tab_zad6)
+
+wynik_zad6 <- data.frame(
+  Statystyka_X2 = test_chi_zad6$statistic,
+  df = test_chi_zad6$parameter,
+  P_value = test_chi_zad6$p.value
+)
+
+wynik_zad6$Decyzja = ifelse(wynik_zad6$P_value < 0.01, 
+                             "Odrzucenie H0 (zmienne zależne)", 
+                             "Brak podstaw do odrzucenia H0 (niezależne)")
+
+kable(wynik_zad6, digits = 6,
+      caption = "Wyniki testu chi-kwadrat niezależności (PYT_2 vs CZY_KIER)")
+```
+Teraz, porównamy wyniki testu Chi-kwadrat z wynikami testu Freemana-Haltona.
+```{r}
+porownanie <- data.frame(
+  Metoda = c("Freeman–Halton", "Chi-kwadrat Pearsona"),
+  p_value = c(0.0430, 0.004397),
+  alfa = c(0.05, 0.01),
+  Decyzja = c(
+    "Odrzucenie H0",
+    "Odrzucenie H0"
+  )
+)
+
+knitr::kable(porownanie, digits = 6,
+             caption = "Porównanie wyników testów niezależności")
+```
+Oba testy wskazują na istnienie zależności pomiędzy poziomem zadowolenia (PYT_2) a zajmowanym stanowiskiem (CZY_KIER). Różnice pomiędzy wynikami testu Freemana–Haltona oraz testu chi-kwadrat Pearsona wynikają z odmiennych własności obu metod. Test dokładny oparty na symulacji Monte Carlo wykazuje większą konserwatywność i sugeruje zależność na poziomie granicznym istotności statystycznej, podczas gdy test asymptotyczny wskazuje na wyraźną istotność. Zbieżność kierunku wnioskowania (odrzucenie $H_0$ w obu przypadkach) wzmacnia tezę o istnieniu zależności między zmiennymi.
+```{r}
+library(reshape2)
+library(ggplot2)
+reszty <- test_chi_zad6$stdres
+df_reszty <- melt(reszty)
+
+ggplot(df_reszty, aes(Var1, Var2, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = round(value, 2))) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red") +
+  labs(
+    title = "Reszty standaryzowane (chi-kwadrat)",
+    x = "PYT_2",
+    y = "CZY_KIER",
+    fill = "reszty"
+  )
+```
+Wykres asocjacyjny oparty na resztach standaryzowanych wskazuje, że istotność testu chi-kwadrat wynika głównie z jednej komórki tabeli kontyngencji. Zaobserwowano istotną nadreprezentację odpowiedzi PYT_2 = 1 w grupie osób pełniących funkcje kierownicze (CZY_KIER = „Tak”) oraz odpowiadającą jej niedoreprezentację w grupie pozostałych pracowników. Pozostałe kategorie nie wykazują istotnych odchyleń od wartości oczekiwanych.
+
+## Zadanie 7 - test niezależności oparty na ilorazie wiarogodności.
+Statystyka testowa testu niezależności opartego na ilorazie wiarogodności wynosi
+$$
+G^2 = -2ln\lambda, \quad \lambda = \prod_{i,j}\left(\frac{n_{i+}n_{+j}}{n}\right)^{n_{ij}}
+$$
+Statystyka testowa $G^2$ dąży według rozkładu dla $n \to \infty$ do rozkładu $\chi^2_{(R-1)(C-1)}$. Poziom krytyczny wyznaczamy analogicznie do testu $\chi^2$. Przeprowadzimy ten test dla zmiennych PYT_2 i CZY_KIER z poprzedniego zadania. Ustalamy $\alpha = 0.05$.
+```{r}
+test_niezaleznosci_G2 <- function(tablica){
+
+  O <- as.matrix(tablica)
+
+  n <- sum(O)
+
+  E <- outer(
+    rowSums(O),
+    colSums(O)
+  ) / n
+
+  G2 <- 2 * sum(
+    ifelse(O == 0, 0, O * log(O / E))
+  )
+
+  df <- (nrow(O)-1)*(ncol(O)-1)
+
+  p_value <- 1 - pchisq(G2, df)
+
+  data.frame(
+    Statystyka_G2 = G2,
+    df = df,
+    P_value = p_value
+  )
+}
+```
+
+```{r}
+tab_zad7 <- table(dane$PYT_2, dane$CZY_KIER)
+
+wynik_zad7 <- test_niezaleznosci_G2(tab_zad6)
+
+wynik_zad7$Decyzja = ifelse(wynik_zad6$P_value < 0.05, 
+                             "Odrzucenie H0 (zmienne zależne)", 
+                             "Brak podstaw do odrzucenia H0 (niezależne)")
+
+kable(wynik_zad7, digits = 6,
+      caption = "Wyniki testu niezależności G2 (PYT_2 vs CZY_KIER)")
+```
+Otrzymany poziom krytyczny w teście ($p = 0.03969$) jest mniejszy od przyjętego poziomu istotności $\alpha = 0.05$, co prowadzi do decyzji o odrzuceniu hipotezy zerowej o niezależności zmiennych PYT_2 i CZY_KIER. Wynik ten jest zgodny z wynikiem testów Freemana–Haltona oraz niezależności chi-kwadrat, co wzmacnia tezę o zależności poziomu zadowolenia ze szkolenia z pełnieniem funkcji kierowniczej.
+
+# Część III
+
+## Zadanie 8 - związek między paleniem papierosów a śmiercią z powodu raka płuc i choroby serca
+Przeprowadzone wśród brytyjskich mężczyzn badanie trwające 20 lat wykazało, że odsetek zmarłych (na rok) z powodu raka płuc wynosił $0.00140$ wśród osób palących papierosy i $0.00010$ wśród osób niepalących. Odsetek zmarłych z powodu choroby niedokrwiennej serca wynosił $0.00669$ dla palaczy i $0.00413$ dla osób niepalących. Przeanalizujemy związek pomiędzy paleniem papierosów a śmiercią z powodu raka płuc oraz związek pomiędzy paleniem papierosów a śmiercią z powodu choroby serca. W tym celu skorzystamy z różnicy proporcji, ryzyka względnego i ilorazu szans.
+```{r}
+analiza_zwiazku <- function(p_palacze, p_niepalacy){
+
+  RD <- p_palacze - p_niepalacy
+
+  RR <- p_palacze / p_niepalacy
+
+  OR <- (p_palacze/(1-p_palacze)) /
+        (p_niepalacy/(1-p_niepalacy))
+
+  c(RD, RR, OR)
+}
+
+rak_pluc <- analiza_zwiazku(0.00140,0.00010)
+
+serce <- analiza_zwiazku(0.00669,0.00413)
+```
+
+```{r}
+wyniki_zad8 <- data.frame(
+  Przyczyna_zgonu = c(
+    "Rak płuc",
+    "Choroba serca"
+  ),
+  Roznica_proporcji = c(
+    rak_pluc[1],
+    serce[1]
+  ),
+  Ryzyko_wzgledne = c(
+    rak_pluc[2],
+    serce[2]
+  ),
+  Iloraz_szans = c(
+    rak_pluc[3],
+    serce[3]
+  )
+)
+
+kable(
+  wyniki_zad8,
+  digits = c(0,5,2,2),
+  caption = "Miary związku pomiędzy paleniem papierosów a przyczyną zgonu"
+)
+```
+W analizie związku pomiędzy paleniem papierosów a przyczyną zgonu zastosowano trzy miary: różnicę proporcji ($RD$), ryzyko względne ($RR$) oraz iloraz szans ($OR$), które opisują zależność w ujęciu absolutnym oraz względnym.
+
+Różnica proporcji ($RD$) opisuje bezwzględną zmianę ryzyka pomiędzy grupą palaczy i niepalących. W przypadku raka płuc wynosi ona $RD=0.00130$, natomiast dla choroby niedokrwiennej serca $RD=0.00256$. Oznacza to, że w ujęciu absolutnym palenie wiąże się z większym przyrostem ryzyka zgonu z powodu choroby serca niż raka płuc, co wynika z wyższego poziomu bazowego ryzyka tej choroby w populacji.
+
+Ryzyko względne ($RR$) mierzy, ile razy większe jest ryzyko w grupie narażonej względem grupy kontrolnej. Dla raka płuc $RR\approx14$, co oznacza czternastokrotny wzrost ryzyka zgonu u palaczy. W przypadku choroby serca $RR \approx 1.62$, co wskazuje na umiarkowany, około $62\%$ wzrost ryzyka. Miara ta pokazuje, że relatywny wpływ palenia jest zdecydowanie silniejszy w przypadku raka płuc.
+
+Iloraz szans ($OR$) interpretuje stosunek szans wystąpienia zdarzenia w grupie palaczy do szans w grupie niepalących. Dla raka płuc $OR\approx14.01$, natomiast dla choroby serca $OR\approx1.63$. Wartości $OR$ są bardzo zbliżone do $RR$, co wynika z rzadkości analizowanych zdarzeń i jest zgodne z teorią statystyczną.
+
+Podsumowując, mimo że różnica proporcji wskazuje na większy efekt absolutny dla choroby niedokrwiennej serca, to zarówno ryzyko względne, jak i iloraz szans jednoznacznie pokazują, że związek pomiędzy paleniem papierosów a śmiercią z powodu raka płuc jest zdecydowanie silniejszy niż w przypadku choroby serca.
+
+## Zadanie 9 - obliczanie miar współzmienności
+W celu oceny zależności pomiędzy zmiennymi porządkowymi zastosowano współczynnik $\tau$ Kendalla oraz współczynnik $\gamma$ Goodmana-Kruskala. Obie miary opisują siłę oraz kierunek zależności monotonicznej, przy czym $\gamma$ nie uwzględnia remisów, co często skutkuje wyższymi wartościami bezwzględnymi w porównaniu do $\tau$. Na podstawie wyników podanych w poniższej tabeli ocenimy, czy istnieje zależność monotoniczna.
+```{r}
+library(DescTools)
+
+tab1 <- table(dane$PYT_2, dane$CZY_KIER)
+tab2 <- table(dane$PYT_2, dane$STAŻ)
+tab3 <- table(dane$CZY_KIER, dane$STAŻ)
+
+tau_1 <- KendallTauB(tab1)
+tau_2 <- KendallTauB(tab2)
+tau_3 <- KendallTauB(tab3)
+
+gamma_1 <- GoodmanKruskalGamma(tab1)
+gamma_2 <- GoodmanKruskalGamma(tab2)
+gamma_3 <- GoodmanKruskalGamma(tab3)
+
+wyniki_zad9 <- data.frame(
+  Para_zmiennych = c(
+    "PYT_2 vs CZY_KIER",
+    "PYT_2 vs STAŻ",
+    "CZY_KIER vs STAŻ"
+  ),
+  Tau = c(tau_1, tau_2, tau_3),
+  Gamma = c(gamma_1, gamma_2, gamma_3)
+)
+
+knitr::kable(
+  wyniki_zad9,
+  digits = 4,
+  caption = "Współczynniki Tau i Gamma"
+)
+```
+**PYT_2 vs CZY_KIER:** Uzyskane wartości ($\tau \approx −0.013$, $\gamma \approx −0.034$) wskazują na praktyczny brak zależności monotonicznej pomiędzy poziomem zadowolenia ze szkolenia a zajmowanym stanowiskiem. Wartości bliskie zeru oznaczają, że zmienne są w przybliżeniu niezależne, a ewentualna zależność jest marginalna i nieistotna interpretacyjnie. Ujemny znak wskazuje na bardzo słabą tendencję odwrotną, jednak jej siła jest pomijalna.
+
+**PYT_2 vs STAŻ:** W przypadku zależności pomiędzy poziomem zadowolenia a stażem pracy ($\tau\approx0.048$, $\gamma\approx0.091$) obserwuje się bardzo słabą dodatnią zależność monotoniczną. Oznacza to, że wraz ze wzrostem stażu pracy można zaobserwować minimalną tendencję wzrostu poziomu zadowolenia, jednak siła tej zależności jest niewielka i ma ograniczone znaczenie praktyczne.
+
+**CZY_KIER vs STAŻ:** Dla pary zmiennych opisujących stanowisko kierownicze i staż pracy uzyskano wartości ($\tau\approx0.282$, $\gamma\approx0.753$, co wskazuje na wyraźną dodatnią zależność monotoniczną. Oznacza to, że osoby z dłuższym stażem pracy znacznie częściej zajmują stanowiska kierownicze. Wysoka wartość gamma potwierdza silny związek, natomiast niższa wartość tau wynika z uwzględnienia licznych remisów w danych.
+
+## Zadanie 10 - analiza korespondencji
+```{r}
+
+analiza_korespondencji <- function(N, typ_wykresu = "principal") {
+  
+  # Sprawdzenie typu danych wejściowych
+  if (!is.matrix(N) && !is.table(N)) {
+    stop("Argument N musi być macierzą lub tablicą dwudzielczą.")
+  }
+  
+  # n - łączna liczność próby
+  n <- sum(N)
+  R_dim <- nrow(N)
+  C_dim <- ncol(N)
+  
+  # Pobranie nazw kategorii (lub nadanie domyślnych)
+  nazwy_wierszy <- rownames(N)
+  if (is.null(nazwy_wierszy)) nazwy_wierszy <- paste0("Wiersz_", 1:R_dim)
+  nazwy_kolumn <- colnames(N)
+  if (is.null(nazwy_kolumn)) nazwy_kolumn <- paste0("Kolumna_", 1:C_dim)
+  
+  # 1. Macierz korespondencji (P) oraz wektory częstości brzegowych (masy r i c)
+  P <- as.matrix(N) / n
+  r <- rowSums(P)
+  c <- colSums(P)
+  
+  # Macierze diagonalne odwrotności mas
+  Dr_inv <- diag(1 / r, nrow = R_dim)
+  Dc_inv <- diag(1 / c, nrow = C_dim)
+  
+  # 2. Macierze profili wierszowych (R) i kolumnowych (C)
+  R_prof <- Dr_inv %*% P
+  rownames(R_prof) <- nazwy_wierszy
+  colnames(R_prof) <- nazwy_kolumn
+  
+  C_prof <- P %*% Dc_inv
+  rownames(C_prof) <- nazwy_wierszy
+  colnames(C_prof) <- nazwy_kolumn
+  
+  # 3. Macierz residuów standaryzowanych (A)
+  # Oczekiwane częstości przy założeniu niezależności (ri * cj)
+  E <- outer(r, c, "*")
+  A <- (P - E) / sqrt(E)
+  rownames(A) <- nazwy_wierszy
+  colnames(A) <- nazwy_kolumn
+  
+  # 4. Dekompozycja według wartości osobliwych (SVD) macierzy A
+  svd_A <- svd(A)
+  U <- svd_A$u
+  V <- svd_A$v
+  gamma_full <- svd_A$d
+  
+  # Maksymalna liczba niezerowych wymiarów (K = min(R-1, C-1))
+  k_max <- min(R_dim - 1, C_dim - 1)
+  gamma <- gamma_full[1:k_max]
+  U <- U[, 1:k_max, drop = FALSE]
+  V <- V[, 1:k_max, drop = FALSE]
+  
+  # Inercja całkowita (bezwładność) oraz inercje składowe (kwadraty wartości osobliwych)
+  inercje_skladnikowe <- gamma^2
+  inercja_calkowita <- sum(inercje_skladnikowe)
+  procent_inercji <- (inercje_skladnikowe / inercja_calkowita) * 100
+  
+  # Statystyka Chi-kwadrat Pearsona związana z inercją
+  chi_kwadrat <- n * inercja_calkowita
+  
+  # 5. Wyznaczenie współrzędnych punktów (wierszy i kolumn)
+  Dr_minus_half <- diag(1 / sqrt(r), nrow = R_dim)
+  Dc_minus_half <- diag(1 / sqrt(c), nrow = C_dim)
+  
+  # Współrzędne typu principal
+  F_principal <- Dr_minus_half %*% U %*% diag(gamma, nrow = k_max)
+  G_principal <- Dc_minus_half %*% V %*% diag(gamma, nrow = k_max)
+  rownames(F_principal) <- nazwy_wierszy
+  colnames(F_principal) <- paste0("Dim_", 1:k_max)
+  rownames(G_principal) <- nazwy_kolumn
+  colnames(G_principal) <- paste0("Dim_", 1:k_max)
+  
+  # Współrzędne typu standard
+  F_standard <- Dr_minus_half %*% U
+  G_standard <- Dc_minus_half %*% V
+  rownames(F_standard) <- nazwy_wierszy
+  colnames(F_standard) <- paste0("Dim_", 1:k_max)
+  rownames(G_standard) <- nazwy_kolumn
+  colnames(G_standard) <- paste0("Dim_", 1:k_max)
+  
+ # 6. Wizualizacja dwuwymiarowa (Mapa percepcyjna) z użyciem ggplot2
+  if (k_max >= 2) {
+    library(ggplot2)
+    library(ggrepel)
+    
+    # Dobór odpowiednich współrzędnych do osi na podstawie wybranego typu wykresu
+    if (typ_wykresu == "standard") {
+      wiersze_plot <- F_standard[, 1:2, drop = FALSE]
+      kolumny_plot <- G_standard[, 1:2, drop = FALSE]
+    } else if (typ_wykresu == "row_principal") {
+      wiersze_plot <- F_principal[, 1:2, drop = FALSE]
+      kolumny_plot <- G_standard[, 1:2, drop = FALSE]
+    } else if (typ_wykresu == "column_principal") {
+      wiersze_plot <- F_standard[, 1:2, drop = FALSE]
+      kolumny_plot <- G_principal[, 1:2, drop = FALSE]
+    } else { # domyślnie "principal"
+      wiersze_plot <- F_principal[, 1:2, drop = FALSE]
+      kolumny_plot <- G_principal[, 1:2, drop = FALSE]
+    }
+    
+    # Dynamiczne pobieranie nazw zmiennych z tabeli N
+    nazwy_zmiennych <- names(dimnames(N))
+    if (is.null(nazwy_zmiennych) || is.null(nazwy_zmiennych[1]) || is.null(nazwy_zmiennych[2])) {
+      nazwy_zmiennych <- c("Wiersze", "Kolumny")
+    }
+    
+    # Przygotowanie struktur danych pod format przyjazny dla ggplot (data.frame)
+    df_wiersze <- data.frame(
+      Dim1 = wiersze_plot[, 1],
+      Dim2 = wiersze_plot[, 2],
+      Etykieta = nazwy_wierszy,
+      Zmienna = paste0(nazwy_zmiennych[1], " (Wiersze)")
+    )
+    
+    df_kolumny <- data.frame(
+      Dim1 = kolumny_plot[, 1],
+      Dim2 = kolumny_plot[, 2],
+      Etykieta = nazwy_kolumn,
+      Zmienna = paste0(nazwy_zmiennych[2], " (Kolumny)")
+    )
+
+    plot_data <- rbind(df_wiersze, df_kolumny)
+    
+    max_x <- max(abs(plot_data$Dim1)) * 1.1
+    max_y <- max(abs(plot_data$Dim2)) * 1.1
+    skala <- max(max_x, max_y)
+
+    wykres <- ggplot(plot_data, aes(x = Dim1, y = Dim2, color = Zmienna, shape = Zmienna)) +
+      # Linie siatki przechodzące przez środek (0,0)
+      geom_hline(yintercept = 0, linetype = "dotted", color = "darkgray", size = 0.6) +
+      geom_vline(xintercept = 0, linetype = "dotted", color = "darkgray", size = 0.6) +
+      # Rysowanie punktów
+      geom_point(size = 3.5, stroke = 1.2) +
+      # Inteligentne, niezasłaniające się etykiety tekstowe
+      geom_text_repel(aes(label = Etykieta), 
+                      size = 4, 
+                      fontface = "bold",
+                      box.padding = 0.5, 
+                      point.padding = 0.3,
+                      show.legend = FALSE) +
+      # Definiowanie własnych kolorów i kształtów (Wiersze = niebieskie kropki, Kolumny = czerwone trójkąty)
+      scale_color_manual(values = c("blue", "red")) +
+      scale_shape_manual(values = c(16, 17)) +
+      # Opisy osi i tytuły
+      labs(
+        title = paste0("Mapa percepcyjna (Analiza korespondencji)"),
+        subtitle = paste0("Typ skalowania: ", typ_wykresu),
+        x = paste0("Wymiar 1 (", round(procent_inercji[1], 1), "%)"),
+        y = paste0("Wymiar 2 (", round(procent_inercji[2], 1), "%)"),
+        color = "Zmienne w analizie:",
+        shape = "Zmienne w analizie:"
+      ) +
+      # Elegancki, czysty styl wizualny
+      theme_minimal() +
+      theme(
+        plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+        plot.subtitle = element_text(size = 11, hjust = 0.5, face = "italic"),
+        axis.title = element_text(face = "bold", size = 11),
+        legend.position = "top",
+        legend.background = element_rect(fill = "white", color = "lightgray"),
+        legend.text = element_text(size = 10)
+      ) +
+      # Kluczowe zachowanie: równe proporcje osi X i Y (odpowiednik asp = 1)
+      coord_fixed()
+    
+    # Wyświetlenie wykresu w oknie R
+    print(wykres)
+    
+  } else {
+    warning("Liczba wymiarów (k_max) jest mniejsza niż 2. Wykres dwuwymiarowy nie mógł zostać sporządzony.")
+  }
+  
+  # Zwrócenie wszystkich wyliczonych macierzy i wektorów żądanych w zadaniu
+  return(list(
+    n = n,
+    macierz_korespondencji = P,
+    masy_wierszowe = r,
+    masy_kolumnowe = c,
+    profile_wierszowe = R_prof,
+    profile_kolumnowe = C_prof,
+    macierz_residuow_A = A,
+    wartosci_osobliwe_gamma = gamma,
+    inercje_skladnikowe = inercje_skladnikowe,
+    inercja_calkowita_lambda = inercja_calkowita,
+    procent_wyjasnianej_inercji = procent_inercji,
+    statystyka_chi_kwadrat = chi_kwadrat,
+    wspolrzedne_principal_wiersze = F_principal,
+    wspolrzedne_principal_kolumny = G_principal,
+    wspolrzedne_standard_wiersze = F_standard,
+    wspolrzedne_standard_kolumny = G_standard
+  ))
+}
+```
+
+Do dokładniejszego zbadania zależności między stopniem zadowolenia ze szkoleń w pierwszym okresie a długością stażu, posłużymy się analizą korespondencji. Tabela dwuwymiarowa tego przypadku wygląda następująco.
+```{r}
+tab <- table(dane$STAŻ, dane$PYT_2)
+
+tab_df <- as.data.frame.matrix(tab)
+
+knitr::kable(
+  tab_df,
+  row.names = TRUE,
+  caption = "Staż pracy × stopień zadowolenia ze szkolenia (PYT_2)",
+  align = "c"
+)
+```
+
+```{r}
+#| fig-width: 8
+#| fig-height: 8
+#| fig-align: center
+wynik_zad10 <- analiza_korespondencji(tab)
+```
+
+```{r}
+tabela_inercji <- data.frame(
+  Wymiar = paste("Wymiar", 1:length(wynik_zad10$procent_wyjasnianej_inercji)),
+  `Inercja cząstkowa` = round(wynik_zad10$procent_wyjasnianej_inercji * wynik_zad10$inercja_calkowita_lambda / 100, 4),
+  `Procent inercji (%)` = round(wynik_zad10$procent_wyjasnianej_inercji, 2),
+  `Inercja całkowita` = c(round(wynik_zad10$inercja_calkowita_lambda, 4), rep("", length(wynik_zad10$procent_wyjasnianej_inercji) - 1)),
+  check.names = FALSE
+)
+
+kable(tabela_inercji, align = "c", caption="Tabela inercji")
+```
+
+Zauważmy, że całkowita inercja wyniosła $0.1306$, co wskazuje na istnienie umiarkowanej zależności pomiędzy zmiennymi. Pierwszy wymiar analizy wyjaśnia $86.7\%$ całkowitej inercji, natomiast drugi wymiar jedynie $13.3\%$, co oznacza, że struktura zależności ma w praktyce charakter jednowymiarowy i może być interpretowana głównie wzdłuż pierwszej osi. Na podstawie mapy percepcyjnej można zauważyć, że kategorie wyższego poziomu zadowolenia ($\text{PYT\_2} = 2$) są zbliżone do grup o dłuższym stażu pracy, co wskazuje na dodatnią zależność pomiędzy doświadczeniem zawodowym a oceną dopasowania szkolenia. Kategorie niskiego zadowolenia są natomiast bardziej oddalone i powiązane z krótszym stażem pracy. Uzyskane wyniki potwierdzają istnienie strukturalnej zależności pomiędzy analizowanymi zmiennymi, przy czym dominującą rolę odgrywa pierwszy wymiar przestrzeni korespondencji.
