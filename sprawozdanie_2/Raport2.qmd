@@ -162,7 +162,12 @@ kable(wynik_zad4, digits = 4, row.names = FALSE,
 
 Uzyskany poziom krytyczny $p\text{-value} \approx 0.6393$ znacznie przekracza próg $\alpha = 0.05$, co oznacza brak podstaw do odrzucenia hipotezy zerowej $H_0$. Zjawisko awansu na stanowisko kierownicze w strukturach firmy jest zatem niezależne od płci pracownika, co z probabilistycznego punktu widzenia zapisujemy jako:
 
-$$P(\text{CZY\_KIER} = \text{"Tak"} \mid \text{PŁEĆ} = \text{"K"}) = P(\text{CZY\_KIER} = \text{"Tak"} \mid \text{PŁEĆ} = \text{"M"}) = P(\text{CZY\_KIER} = \text{"Tak"})$$
+$$
+\begin{aligned}
+P(\text{CZY\_KIER} = \text{"Tak"} \mid \text{PŁEĆ} = \text{"K"}) &= P(\text{CZY\_KIER} = \text{"Tak"} \mid \text{PŁEĆ} = \text{"M"}) \\
+&= P(\text{CZY\_KIER} = \text{"Tak"})
+\end{aligned}
+$$
 
 Należy jednak precyzyjnie odpowiedzieć na fundamentalne pytanie: Czy wynika stąd, że na stanowisku kierowniczym kobiety i mężczyźni pracują z tym samym prawdopodobieństwem? Czyli czy zachodzi równość:
 
@@ -170,7 +175,12 @@ $$P(\text{PŁEĆ} = \text{"K"} \mid \text{CZY\_KIER} = \text{"Tak"}) = 0.5 \quad
 
 Z matematycznego punktu widzenia odpowiedź brzmi: Nie. Na mocy twierdzenia Bayesa oraz wykazanej niezależności zmiennych, rozkład warunkowy jest determinowany wyłącznie przez brzegowy rozkład płci w populacji ogólnej:
 
-$$P(\text{PŁEĆ} = \text{"K"} \mid \text{CZY\_KIER} = \text{"Tak"}) = \frac{P(\text{CZY\_KIER} = \text{"Tak"} \mid \text{PŁEĆ} = \text{"K"}) \cdot P(\text{PŁEĆ} = \text{"K"})}{P(\text{CZY\_KIER} = \text{"Tak"})} = P(\text{PŁEĆ} = \text{"K"})$$
+$$
+\begin{aligned}
+P(\text{PŁEĆ} = \text{"K"} \mid \text{CZY\_KIER} = \text{"Tak"}) &= \frac{P(\text{CZY\_KIER} = \text{"Tak"} \mid \text{PŁEĆ} = \text{"K"}) \cdot P(\text{PŁEĆ} = \text{"K"})}{P(\text{CZY\_KIER} = \text{"Tak"})} \\
+&= P(\text{PŁEĆ} = \text{"K"})
+\end{aligned}
+$$
 
 Z wcześniejszych analiz wiemy, że mężczyźni stanowią około $65\%$ struktury zatrudnienia ($P(\text{PŁEĆ} = \text{"M"}) \approx 0.65$). Skoro proces selekcji na stanowiska kierownicze jest niezależny od płci, to struktura kadry zarządzającej powiela tę dysproporcję. Zweryfikujmy to formalnym testem dwumianowym dla frakcji sukcesu pośród podpróby kierowników ($H_0: p = 0.5$):
 
