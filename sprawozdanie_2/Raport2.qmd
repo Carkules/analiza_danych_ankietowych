@@ -285,7 +285,7 @@ porownanie <- data.frame(
 knitr::kable(porownanie, digits = 6,
              caption = "Porównanie wyników testów niezależności")
 ```
-Oba testy wskazują na istnienie zależności pomiędzy poziomem zadowolenia (PYT_2) a zajmowanym stanowiskiem (CZY_KIER). Różnice pomiędzy wynikami testu Freemana–Haltona oraz testu chi-kwadrat Pearsona wynikają z odmiennych własności obu metod. Test dokładny oparty na symulacji Monte Carlo wykazuje większą konserwatywność i sugeruje zależność na poziomie granicznym istotności statystycznej, podczas gdy test asymptotyczny wskazuje na wyraźną istotność. Zbieżność kierunku wnioskowania (odrzucenie $H_0$ w obu przypadkach) wzmacnia tezę o istnieniu zależności między zmiennymi.
+Oba testy wskazują na istnienie zależności pomiędzy poziomem zadowolenia (PYT_2) a zajmowanym stanowiskiem (CZY_KIER). Różnice pomiędzy wynikami testu Freemana–Haltona oraz testu chi-kwadrat Pearsona wynikają z odmiennych własności obu metod. Test dokładny oparty na symulacji Monte Carlo wykazuje większą konserwatywność i sugeruje zależność na poziomie granicznym istotności statystycznej, podczas gdy test asymptotyczny wskazuje na wyraźną istotność. W poprzednim zadaniu dla testu Freemana-Haltona ustaliliśmy poziom istotności $\alpha=0.05$. Zauważmy, że jeżeli przyjmiemy bardziej rygorystyczny poziom istotności $\alpha=0.01$, taki jak przy teście chi-kwadrat, to brakowałoby podstaw do odrzucenia $H_0$. Przyjmując jednak $\alpha=0.05$ dla testu Freemana-Haltona oraz $\alpha=0.01$ dla testu chi-kwadrat obserwujemy zbieżność kierunku wnioskowania (odrzucenie $H_0$ w obu przypadkach), co wzmacnia tezę o istnieniu zależności między zmiennymi.
 ```{r}
 library(reshape2)
 library(ggplot2)
@@ -344,7 +344,7 @@ tab_zad7 <- table(dane$PYT_2, dane$CZY_KIER)
 
 wynik_zad7 <- test_niezaleznosci_G2(tab_zad6)
 
-wynik_zad7$Decyzja = ifelse(wynik_zad6$P_value < 0.05, 
+wynik_zad7$Decyzja = ifelse(wynik_zad7$P_value < 0.05, 
                              "Odrzucenie H0 (zmienne zależne)", 
                              "Brak podstaw do odrzucenia H0 (niezależne)")
 
@@ -444,7 +444,7 @@ knitr::kable(
   caption = "Współczynniki Tau i Gamma"
 )
 ```
-**PYT_2 vs CZY_KIER:** Uzyskane wartości ($\tau \approx −0.013$, $\gamma \approx −0.034$) wskazują na praktyczny brak zależności monotonicznej pomiędzy poziomem zadowolenia ze szkolenia a zajmowanym stanowiskiem. Wartości bliskie zeru oznaczają, że zmienne są w przybliżeniu niezależne, a ewentualna zależność jest marginalna i nieistotna interpretacyjnie. Ujemny znak wskazuje na bardzo słabą tendencję odwrotną, jednak jej siła jest pomijalna.
+**PYT_2 vs CZY_KIER:** Zmienna dychotomiczna CZY_KIER została potraktowana jako porządkowa przy założeniu, że stanowisko kierownicze oznacza wyższy szczebel w hierarchii organizacyjnej. Uzyskane wartości ($\tau \approx −0.013$, $\gamma \approx −0.034$) wskazują na praktyczny brak zależności monotonicznej pomiędzy poziomem zadowolenia ze szkolenia a zajmowanym stanowiskiem. Wartości bliskie zeru oznaczają, że zmienne są w przybliżeniu niezależne, a ewentualna zależność jest marginalna i nieistotna interpretacyjnie. Ujemny znak wskazuje na bardzo słabą tendencję odwrotną, jednak jej siła jest pomijalna.
 
 **PYT_2 vs STAŻ:** W przypadku zależności pomiędzy poziomem zadowolenia a stażem pracy ($\tau\approx0.048$, $\gamma\approx0.091$) obserwuje się bardzo słabą dodatnią zależność monotoniczną. Oznacza to, że wraz ze wzrostem stażu pracy można zaobserwować minimalną tendencję wzrostu poziomu zadowolenia, jednak siła tej zależności jest niewielka i ma ograniczone znaczenie praktyczne.
 
@@ -684,3 +684,145 @@ kable(tabela_inercji, align = "c", caption="Tabela inercji")
 ```
 
 Zauważmy, że całkowita inercja wyniosła $0.1306$, co wskazuje na istnienie umiarkowanej zależności pomiędzy zmiennymi. Pierwszy wymiar analizy wyjaśnia $86.7\%$ całkowitej inercji, natomiast drugi wymiar jedynie $13.3\%$, co oznacza, że struktura zależności ma w praktyce charakter jednowymiarowy i może być interpretowana głównie wzdłuż pierwszej osi. Na podstawie mapy percepcyjnej można zauważyć, że kategorie wyższego poziomu zadowolenia ($\text{PYT\_2} = 2$) są zbliżone do grup o dłuższym stażu pracy, co wskazuje na dodatnią zależność pomiędzy doświadczeniem zawodowym a oceną dopasowania szkolenia. Kategorie niskiego zadowolenia są natomiast bardziej oddalone i powiązane z krótszym stażem pracy. Uzyskane wyniki potwierdzają istnienie strukturalnej zależności pomiędzy analizowanymi zmiennymi, przy czym dominującą rolę odgrywa pierwszy wymiar przestrzeni korespondencji.
+
+# Część Dodatkowa
+## Zadanie 1 - test oparty na korelacji odległości
+Test oparty o korelację odległości służy do oceny niezależności dwóch zmiennych losowych. W przeciwieństwie do klasycznej korelacji Pearsona, metoda ta wykrywa zarówno zależności liniowe, jak i nieliniowe dowolnego typu. Procedura opiera się na przekształceniu obserwacji do macierzy odległości euklidesowych, które następnie poddawane są podwójnemu centrowaniu (usunięciu efektów średnich wierszy, kolumn oraz średniej globalnej). Na podstawie tak przetworzonych macierzy obliczana jest statystyka korelacji odległości, będąca unormowaną miarą zgodności struktur odległości w obu zmiennych. Istotność statystyki oceniana jest metodą permutacyjną, w której wielokrotnie losowo przestawia się wartości jednej ze zmiennych, niszcząc ewentualną zależność. Następnie porównuje się wartość obserwowaną statystyki z rozkładem empirycznym uzyskanym z permutacji. Wartość poziomu krytycznego obliczymy stosując korelację odległości $dCor$
+$$
+  dCor(X, Y) = \frac{dCov(X,Y)}{\sqrt{dVar(x)dVar(Y)}},
+$$
+gdzie $dCov$ oznacza kowariancję odległości, a $dVar$ wariancję odległości.
+
+```{r}
+double_center <- function(D) {
+  n <- nrow(D)
+  row_means <- rowMeans(D)
+  col_means <- colMeans(D)
+  grand_mean <- mean(D)
+  
+  A <- sweep(D, 1, row_means, "-")
+  A <- sweep(A, 2, col_means, "-")
+  A <- A + grand_mean
+  return(A)
+}
+
+calc_dcor <- function(x, y) {
+  Dx <- as.matrix(dist(x))
+  Dy <- as.matrix(dist(y))
+  
+  A <- double_center(Dx)
+  B <- double_center(Dy)
+  
+  dCov_XY <- mean(A * B)
+  dVar_X <- mean(A * A)
+  dVar_Y <- mean(B * B)
+  
+  if (dVar_X == 0 || dVar_Y == 0) return(0)
+  
+  return(dCov_XY / sqrt(dVar_X * dVar_Y))
+}
+
+test_korelacji_odleglosci <- function(x, y, R = 999) {
+  stat_obs <- calc_dcor(x, y)
+  stat_perm <- numeric(R)
+  
+  for (i in 1:R) {
+    y_perm <- sample(y)
+    stat_perm[i] <- calc_dcor(x, y_perm)
+  }
+  
+  p_value <- (sum(stat_perm >= stat_obs) + 1) / (R + 1)
+  
+  return(list(
+    Korelacja_odleglosci = stat_obs,
+    P_value = p_value
+  ))
+}
+
+```
+
+Test ten przeprowadzimy dla dwóch przypadków. W pierwszym wygenerowano dwie niezależne próbki z rozkładu normalnego
+$$
+X \sim N(0, 1) \quad Y\sim N(0,1).
+$$
+W drugim przypadku wygenerowano dwie próbki zależne nieliniowo
+$$
+X \sim N(0, 1) \quad Y = X^2 + \epsilon,
+$$
+gdzie $\epsilon \sim N(0, 0.5^2)$. Dla testu przyjmujemy poziom istotności $\alpha = 0.05$. Wyniki przedstawiono w poniższej tabelce
+```{r}
+set.seed(123)
+
+x1 <- rnorm(100)
+y1 <- rnorm(100)
+
+x2 <- rnorm(100)
+y2 <- x2^2 + rnorm(100, sd = 0.5)
+
+wynik1 <- test_korelacji_odleglosci(x1, y1)
+wynik2 <- test_korelacji_odleglosci(x2, y2)
+
+# Funkcja decyzji
+decyzja <- function(p) {
+  ifelse(p < 0.05, "Odrzucenie H0", "Brak podstaw do odrzucenia H0")
+}
+
+# Tabela końcowa
+tabela_wynikow <- data.frame(
+  Przypadek = c(1, 2),
+  Statystyka_testowa = c(
+    wynik1$Korelacja_odleglosci,
+    wynik2$Korelacja_odleglosci
+  ),
+  P_value = c(
+    wynik1$P_value,
+    wynik2$P_value
+  ),
+  Decyzja = c(
+    decyzja(wynik1$P_value),
+    decyzja(wynik2$P_value)
+  )
+)
+
+knitr::kable(
+  tabela_wynikow,
+  digits = 4,
+  caption = "Test korelacji odległości"
+)
+```
+Wyniki testu są zgodne z oczekiwaniami. W pierwszym przypadku p-value jest ostro większe od przyjętego poziomu istotności ($0.659 > 0.05$), zatem nie mamy podstaw do odrzucenia hipotezy $H_0$ o niezależności. Z kolei w drugim przypadku p-value jest znacząco mniejsze od poziomu istotności ($0.001 < 0.05$), zatem podjęta zostaje decyzja o odrzuceniu $H_0$.
+
+## Zadanie 2 - Związek ryyka względnego (RR) i ilorazu szans (OR)
+Pokażemy, że wartość ryzyka względnego ($RR$) nie jest bardziej oddalona od wartości $1$ (oznaczającej brak zależności) niż wartość ilorazu szans ($OR$). Niech $\pi_1$ oraz $\pi_2$ oznaczają prawdopodobieństwa sukcesu w dwóch badanych grupach (zakładamy $\pi_1, \pi_2 \in (0,1)$). Ryzyko względne oraz iloraz szans definiujemy jako:
+$$
+RR = \frac{\pi_1}{\pi_2} \quad OR = \frac{\frac{\pi_1}{1-\pi_1}}{\frac{\pi_2}{1-\pi_2}} = \frac{\pi_1(1-\pi_2)}{\pi_2(1-\pi_1)}.
+$$
+Możemy zatem powiązać ze sobą $OR$ i $RR$ 
+$$
+OR = RR \cdot \frac{1-\pi_2}{1-\pi_1}
+$$
+Rozważmy trzy możliwe scenariusze
+
+1. Jeśli $RR > 1$, to $\pi_1 > \pi_2$. Z tego wynika
+$$
+1-\pi_1 < 1-\pi_2 \implies \frac{1-\pi_2}{1-\pi_1} > 1.
+$$
+Wtedy $OR$ jest iloczynem $RR$ i liczby większej od $1$, więc
+$$
+OR > RR > 1.
+$$
+2. Jeśli $RR < 1$, to $\pi_1 < \pi_2$. Z tego wynika
+$$
+1-\pi_1 > 1-\pi_2 \implies \frac{1-\pi_2}{1-\pi_1} < 1.
+$$
+Wtedy $OR$ jest iloczynem $RR$ i liczby z przedziału $(0, 1)$, więc
+$$
+0 < OR < RR < 1.
+$$
+3. Jeśli $RR = 1$, to 
+$$
+\pi_1 = \pi_2 \implies \frac{1-\pi_2}{1-\pi_1} = 1.
+$$
+Wtedy $OR = RR = 1$.
+
+Podsumowując, w każdym przypadku iloraz szans $OR$ zawsze przyjmuje wartość równie lub bardziej oddaloną od jedynki niż ryzyko względne $RR$.
