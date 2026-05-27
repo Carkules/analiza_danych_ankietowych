@@ -14,6 +14,9 @@ execute:
   warning: false
   message: false
   tidy: true
+editor: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r}
@@ -53,9 +56,18 @@ dane <- dane %>%
 
 ## Zadanie 1 - Przedział ufności dla wektora prawdopodobieństw
 
-W losowej próbie $n = 200$ pracowników, wybranej w oparciu o schemat losowania prostego ze zwracaniem, badano opinie na temat skuteczności szkolenia „Efektywna komunikacja w zespole”. Uzyskano następujące liczebności eksperymentalne w poszczególnych kategoriach oceny: 14, 17, 40, 100 oraz 29. Celem analizy jest wyznaczenie symultanicznego przedziału ufności na poziomie ufności $1 - \alpha = 0.95$ dla wielomianowego wektora prawdopodobieństw $\mathbf{p} = [p_1, p_2, p_3, p_4, p_5]^T$.
+W losowej próbie $n = 200$ pracowników, wybranej w oparciu o schemat
+losowania prostego ze zwracaniem, badano opinie na temat skuteczności
+szkolenia „Efektywna komunikacja w zespole”. Uzyskano następujące
+liczebności eksperymentalne w poszczególnych kategoriach oceny: 14, 17,
+40, 100 oraz 29. Celem analizy jest wyznaczenie symultanicznego
+przedziału ufności na poziomie ufności $1 - \alpha = 0.95$ dla
+wielomianowego wektora prawdopodobieństw
+$\mathbf{p} = [p_1, p_2, p_3, p_4, p_5]^T$.
 
-Do wyznaczenia przedziałów ufności zastosowano klasyczną metodę Goodmana, opierającą się na asymptotycznym rozkładzie statystyki $\chi^2$.
+Do wyznaczenia przedziałów ufności zastosowano klasyczną metodę
+Goodmana, opierającą się na asymptotycznym rozkładzie statystyki
+$\chi^2$.
 
 ```{r}
 x_zad1 <- c(14, 17, 40, 100, 29)
@@ -69,13 +81,28 @@ kable(przedzialy_wielomianowe, digits = 4,
       caption = "Symultaniczne przedzialy ufnosci Goodmana na poziomie 0.95")
 ```
 
-**Interpretacja statystyczna:** Otrzymane przedziały określają z 95-procentową ufnością zakres, w jakim znajdują się rzeczywiste, brzegowe prawdopodobieństwa sukcesu dla poszczególnych opinii w całej populacji pracowników. Analiza uzyskanych granic pozwala stwierdzić, że struktura ocen charakteryzuje się silną asymetrią lewostronną. Cecha zadowolenia jest w badanej populacji dominująca — dolna granica przedziału ufności dla kategorii „Zadowoleni” wynosi aż $0.4087$, co świadczy o wysokiej, powtarzalnej ocenie efektywności szkolenia.
+**Interpretacja statystyczna:** Otrzymane przedziały określają z
+95-procentową ufnością zakres, w jakim znajdują się rzeczywiste,
+brzegowe prawdopodobieństwa sukcesu dla poszczególnych opinii w całej
+populacji pracowników. Analiza uzyskanych granic pozwala stwierdzić, że
+struktura ocen charakteryzuje się silną asymetrią lewostronną. Cecha
+zadowolenia jest w badanej populacji dominująca — dolna granica
+przedziału ufności dla kategorii „Zadowoleni” wynosi aż $0.4087$, co
+świadczy o wysokiej, powtarzalnej ocenie efektywności szkolenia.
 
 ## Zadanie 2 - Implementacja funkcji testowych dla rozkładu wielomianowego
 
-W celu weryfikacji hipotez o zadanej strukturze prawdopodobieństw $H_{0}: p = p_{0}$ przeciwko hipotezie alternatywnej $H_{1}: p \neq p_{0}$ dla danych z rozkładu wielomianowego, zaimplementowano autonomiczną funkcję w środowisku `R`. Funkcja ta przyjmuje jako argumenty wektor empirycznych liczebności $x$ oraz wektor zakładanych prawdopodobieństw $p_0$.
+W celu weryfikacji hipotez o zadanej strukturze prawdopodobieństw
+$H_{0}: p = p_{0}$ przeciwko hipotezie alternatywnej
+$H_{1}: p \neq p_{0}$ dla danych z rozkładu wielomianowego,
+zaimplementowano autonomiczną funkcję w środowisku `R`. Funkcja ta
+przyjmuje jako argumenty wektor empirycznych liczebności $x$ oraz wektor
+zakładanych prawdopodobieństw $p_0$.
 
-Wyznaczanie poziomu krytycznego ($p\text{-value}$) opiera się na asymptotycznych właściwościach dwóch statystyk testowych o rozkładzie $\chi^2$ z liczbą stopni swobody $df = k - 1$, gdzie $k$ oznacza liczbę kategorii:
+Wyznaczanie poziomu krytycznego ($p\text{-value}$) opiera się na
+asymptotycznych właściwościach dwóch statystyk testowych o rozkładzie
+$\chi^2$ z liczbą stopni swobody $df = k - 1$, gdzie $k$ oznacza liczbę
+kategorii:
 
 1.  Statystyka chi-kwadrat Pearsona ($X^2$):
 
@@ -108,17 +135,26 @@ p_value_wielomianowy <- function(x, p0) {
 }
 ```
 
-Zdefiniowana powyżej funkcja automatycznie obsługuje potencjalne problemy numeryczne (klauzula ifelse dla kategorii o zerowej liczności empirycznej) i zwraca ujednoliconą tablicę zawierającą wartości statystyk oraz odpowiadające im poziomy istotności $p\text{-value}$.
+Zdefiniowana powyżej funkcja automatycznie obsługuje potencjalne
+problemy numeryczne (klauzula ifelse dla kategorii o zerowej liczności
+empirycznej) i zwraca ujednoliconą tablicę zawierającą wartości
+statystyk oraz odpowiadające im poziomy istotności $p\text{-value}$.
 
 ## Zadanie 3 - Weryfikacja hipotezy o rozkładzie równomiernym
 
-Weryfikujemy hipotezę, że dla pracowników zatrudnionych w Dziale Produktowym ($\text{DZIAŁ} = \text{"PD"}$) rozkład odpowiedzi na pierwsze pytanie ankietowe $\text{PYT\_1}$ jest równomierny. Formalnie oznacza to weryfikację hipotezy zerowej $H_0$ przeciwko hipotezie alternatywnej $H_1$ postaci:
+Weryfikujemy hipotezę, że dla pracowników zatrudnionych w Dziale
+Produktowym ($\text{DZIAŁ} = \text{"PD"}$) rozkład odpowiedzi na
+pierwsze pytanie ankietowe $\text{PYT\_1}$ jest równomierny. Formalnie
+oznacza to weryfikację hipotezy zerowej $H_0$ przeciwko hipotezie
+alternatywnej $H_1$ postaci:
 
 $$H_{0}: p_{1} = p_{2} = p_{3} = p_{4} = p_{5} = 0.2$$
 
 $$H_1: \exists \, i \in \{1, 2, 3, 4, 5\} \quad \text{taki, że} \quad p_i \neq 0.2$$
 
-Do weryfikacji powyższego układu hipotez wykorzystano napisaną w ramach Zadania 2 funkcję realizującą asymptotyczne testy zgodności. Przyjęto nominalny poziom istotności $\alpha = 0.05$.
+Do weryfikacji powyższego układu hipotez wykorzystano napisaną w ramach
+Zadania 2 funkcję realizującą asymptotyczne testy zgodności. Przyjęto
+nominalny poziom istotności $\alpha = 0.05$.
 
 ```{r}
 dane_pd <- dane %>% filter(DZIAŁ == "PD")
@@ -131,13 +167,27 @@ kable(wynik_zad3, digits = 4, escape = FALSE,
       caption = "Wyniki testów zgodności dla Działu Produktowego (PD)")
 ```
 
-**Wnioski i konkluzja:** Obliczona wartość poziomu krytycznego ($p\text{-value}$) dla obu niezależnych statystyk asymptotycznych jest drastycznie mniejsza od przyjętego poziomu istotności $\alpha = 0.05$ ($p\text{-value} < 0.0001$). Stanowi to jednoznaczną i silną podstawę odrzucenia hipotezy zerowej $H_0$ na rzecz hipotezy alternatywnej $H_1$. Rozkład empiryczny odpowiedzi na zmienną $\text{PYT\_1}$ w Dziale Produktowym wykazuje istotne statystycznie odstępstwo od struktury równomiernej, koncentrując się wokół ocen pozytywnych.
+**Wnioski i konkluzja:** Obliczona wartość poziomu krytycznego
+($p\text{-value}$) dla obu niezależnych statystyk asymptotycznych jest
+drastycznie mniejsza od przyjętego poziomu istotności $\alpha = 0.05$
+($p\text{-value} < 0.0001$). Stanowi to jednoznaczną i silną podstawę
+odrzucenia hipotezy zerowej $H_0$ na rzecz hipotezy alternatywnej $H_1$.
+Rozkład empiryczny odpowiedzi na zmienną $\text{PYT\_1}$ w Dziale
+Produktowym wykazuje istotne statystycznie odstępstwo od struktury
+równomiernej, koncentrując się wokół ocen pozytywnych.
 
 # Część II
 
 ## Zadanie 4 - Analiza tablic wielodzielczych (Zmienne PŁEĆ i CZY_KIER)
 
-Przedmiotem analizy jest weryfikacja hipotezy o niezależności zmiennej dychotomicznej określającej płeć pracownika ($\text{PŁEĆ} \in \{\text{"K"}, \text{"M"}\}$) oraz zmiennej informującej o pełnieniu funkcji kierowniczej ($\text{CZY\_KIER} \in \{\text{"Tak"}, \text{"Nie"}\}$). Z uwagi na naturę danych oraz strukturę macierzy kontyngencji $2 \times 2$, zastosowano klasyczny, dokładny test Fishera oparty na rozkładzie hipergeometrycznym.
+Przedmiotem analizy jest weryfikacja hipotezy o niezależności zmiennej
+dychotomicznej określającej płeć pracownika
+($\text{PŁEĆ} \in \{\text{"K"}, \text{"M"}\}$) oraz zmiennej
+informującej o pełnieniu funkcji kierowniczej
+($\text{CZY\_KIER} \in \{\text{"Tak"}, \text{"Nie"}\}$). Z uwagi na
+naturę danych oraz strukturę macierzy kontyngencji $2 \times 2$,
+zastosowano klasyczny, dokładny test Fishera oparty na rozkładzie
+hipergeometrycznym.
 
 Układ hipotez przyjmuje postać:
 
@@ -160,7 +210,11 @@ kable(wynik_zad4, digits = 4, row.names = FALSE,
 
 ### Analiza prawdopodobieństwa warunkowego na stanowiskach kierowniczych
 
-Uzyskany poziom krytyczny $p\text{-value} \approx 0.6393$ znacznie przekracza próg $\alpha = 0.05$, co oznacza brak podstaw do odrzucenia hipotezy zerowej $H_0$. Zjawisko awansu na stanowisko kierownicze w strukturach firmy jest zatem niezależne od płci pracownika, co z probabilistycznego punktu widzenia zapisujemy jako:
+Uzyskany poziom krytyczny $p\text{-value} \approx 0.6393$ znacznie
+przekracza próg $\alpha = 0.05$, co oznacza brak podstaw do odrzucenia
+hipotezy zerowej $H_0$. Zjawisko awansu na stanowisko kierownicze w
+strukturach firmy jest zatem niezależne od płci pracownika, co z
+probabilistycznego punktu widzenia zapisujemy jako:
 
 $$
 \begin{aligned}
@@ -169,11 +223,16 @@ P(\text{CZY\_KIER} = \text{"Tak"} \mid \text{PŁEĆ} = \text{"K"}) &= P(\text{CZ
 \end{aligned}
 $$
 
-Należy jednak precyzyjnie odpowiedzieć na fundamentalne pytanie: Czy wynika stąd, że na stanowisku kierowniczym kobiety i mężczyźni pracują z tym samym prawdopodobieństwem? Czyli czy zachodzi równość:
+Należy jednak precyzyjnie odpowiedzieć na fundamentalne pytanie: Czy
+wynika stąd, że na stanowisku kierowniczym kobiety i mężczyźni pracują z
+tym samym prawdopodobieństwem? Czyli czy zachodzi równość:
 
 $$P(\text{PŁEĆ} = \text{"K"} \mid \text{CZY\_KIER} = \text{"Tak"}) = 0.5 \quad ?$$
 
-Z matematycznego punktu widzenia odpowiedź brzmi: Nie. Na mocy twierdzenia Bayesa oraz wykazanej niezależności zmiennych, rozkład warunkowy jest determinowany wyłącznie przez brzegowy rozkład płci w populacji ogólnej:
+Z matematycznego punktu widzenia odpowiedź brzmi: Nie. Na mocy
+twierdzenia Bayesa oraz wykazanej niezależności zmiennych, rozkład
+warunkowy jest determinowany wyłącznie przez brzegowy rozkład płci w
+populacji ogólnej:
 
 $$
 \begin{aligned}
@@ -182,7 +241,12 @@ P(\text{PŁEĆ} = \text{"K"} \mid \text{CZY\_KIER} = \text{"Tak"}) &= \frac{P(\t
 \end{aligned}
 $$
 
-Z wcześniejszych analiz wiemy, że mężczyźni stanowią około $65\%$ struktury zatrudnienia ($P(\text{PŁEĆ} = \text{"M"}) \approx 0.65$). Skoro proces selekcji na stanowiska kierownicze jest niezależny od płci, to struktura kadry zarządzającej powiela tę dysproporcję. Zweryfikujmy to formalnym testem dwumianowym dla frakcji sukcesu pośród podpróby kierowników ($H_0: p = 0.5$):
+Z wcześniejszych analiz wiemy, że mężczyźni stanowią około $65\%$
+struktury zatrudnienia ($P(\text{PŁEĆ} = \text{"M"}) \approx 0.65$).
+Skoro proces selekcji na stanowiska kierownicze jest niezależny od płci,
+to struktura kadry zarządzającej powiela tę dysproporcję. Zweryfikujmy
+to formalnym testem dwumianowym dla frakcji sukcesu pośród podpróby
+kierowników ($H_0: p = 0.5$):
 
 ```{r}
 kierownicy <- dane %>% filter(CZY_KIER == "Tak")
@@ -198,17 +262,29 @@ kable(wynik_binom, digits = 4, row.names = FALSE,
       caption = "Test dwumianowy dla proporcji płci wśród kadry kierowniczej")
 ```
 
-Niski poziom krytyczny ($p\text{-value} \approx 0.0115$) nakazuje odrzucić hipotezę o równości szans ($p=0.5$). Przewaga mężczyzn na stanowiskach kierowniczych jest istotna statystycznie, lecz wynika ona bezpośrednio ze struktury zatrudnienia, a nie z dyskryminacji w procesie awansu.
+Niski poziom krytyczny ($p\text{-value} \approx 0.0115$) nakazuje
+odrzucić hipotezę o równości szans ($p=0.5$). Przewaga mężczyzn na
+stanowiskach kierowniczych jest istotna statystycznie, lecz wynika ona
+bezpośrednio ze struktury zatrudnienia, a nie z dyskryminacji w procesie
+awansu.
 
 ## Zadanie 5 - Test Freemana-Haltona dla układów wielodzielczych
 
-Rozszerzając analizę wielowymiarową, poddano weryfikacji szereg hipotez zerowych o niezależności czynników demograficzno-organizacyjnych oraz wskaźników zadowolenia ze szkoleń. W przypadkach, gdy wymiary macierzy kontyngencji przekraczały układ $2 \times 2$, zastosowano uogólnienie testu Fishera — test Freemana-Haltona. Poziomy krytyczne wyznaczono metodą symulacji Monte Carlo (liczba replikacji $B = 20\,000$).
+Rozszerzając analizę wielowymiarową, poddano weryfikacji szereg hipotez
+zerowych o niezależności czynników demograficzno-organizacyjnych oraz
+wskaźników zadowolenia ze szkoleń. W przypadkach, gdy wymiary macierzy
+kontyngencji przekraczały układ $2 \times 2$, zastosowano uogólnienie
+testu Fishera — test Freemana-Haltona. Poziomy krytyczne wyznaczono
+metodą symulacji Monte Carlo (liczba replikacji $B = 20\,000$).
 
-Analizę satysfakcji opinii przeprowadzono w dwóch ujęciach metodologicznych:
+Analizę satysfakcji opinii przeprowadzono w dwóch ujęciach
+metodologicznych:
 
--   Na oryginalnej, dyskretnej skali pięciostopniowej (zmienna $\text{PYT\_2} \in \{-2, -1, 0, 1, 2\}$).
+-   Na oryginalnej, dyskretnej skali pięciostopniowej (zmienna
+    $\text{PYT\_2} \in \{-2, -1, 0, 1, 2\}$).
 
--   Na zagregowanej zmiennej dychotomicznej (zmienna $\text{CZY\_ZADOW} \in \{\text{"Tak"}, \text{"Nie"}\}$)
+-   Na zagregowanej zmiennej dychotomicznej (zmienna
+    $\text{CZY\_ZADOW} \in \{\text{"Tak"}, \text{"Nie"}\}$)
 
 ```{r}
 wykonaj_test_fh <- function(zmienna1, zmienna2, zbior_danych) {
@@ -246,12 +322,31 @@ kable(wyniki_zad5, digits = 4, escape = FALSE,
 
 **Synteza i wnioski porównawcze:**
 
-Analiza empiryczna ujawnia wysoki stopień jednorodności opinii pracowników. Prawie wszystkie poziomy krytyczne $p\text{-value}$ jednoznacznie przekraczają próg istotności $\alpha = 0.05$, co dowodzi statystycznej niezależności zadowolenia ze szkoleń od czynników socjodemograficznych (płeć, wiek) czy pozycji w strukturze organizacyjnej (staż, stanowisko).
+Analiza empiryczna ujawnia wysoki stopień jednorodności opinii
+pracowników. Prawie wszystkie poziomy krytyczne $p\text{-value}$
+jednoznacznie przekraczają próg istotności $\alpha = 0.05$, co dowodzi
+statystycznej niezależności zadowolenia ze szkoleń od czynników
+socjodemograficznych (płeć, wiek) czy pozycji w strukturze
+organizacyjnej (staż, stanowisko).
 
-Porównując ujęcie wielokrotne ($\text{PYT\_2}$) oraz dychotomiczne ($\text{CZY\_ZADOW}$), należy wskazać, że transformacja i agregacja danych nie wpłynęły na zmianę finalnych decyzji weryfikacyjnych — we wszystkich przypadkach utrzymano wnioski o braku zależności. Z punktu widzenia teorii statystyki, redukcja skali pomiarowej (z pięciostopniowej do binarnej) skutkuje utratą części informacji o wariancji cechy, lecz w tym konkretnym badaniu uodporniła analizę na fluktuacje liczebności w skrajnych kategoriach, dostarczając tożsame i stabilne konkluzje o powszechnym, jednolitym zadowoleniu pracowników.
+Porównując ujęcie wielokrotne ($\text{PYT\_2}$) oraz dychotomiczne
+($\text{CZY\_ZADOW}$), należy wskazać, że transformacja i agregacja
+danych nie wpłynęły na zmianę finalnych decyzji weryfikacyjnych — we
+wszystkich przypadkach utrzymano wnioski o braku zależności. Z punktu
+widzenia teorii statystyki, redukcja skali pomiarowej (z
+pięciostopniowej do binarnej) skutkuje utratą części informacji o
+wariancji cechy, lecz w tym konkretnym badaniu uodporniła analizę na
+fluktuacje liczebności w skrajnych kategoriach, dostarczając tożsame i
+stabilne konkluzje o powszechnym, jednolitym zadowoleniu pracowników.
 
 ## Zadanie 6 - Test niezależności chi-kwadrat dla zmiennych PYT_2 i CZY_KIER
-W celu weryfikacji hipotezy o niezależności stopnia zadowolenia ze szkolenia w kontekście dopasowania do indywidualnych potrzeb (zmienna $\text{PYT\_2}$) oraz zajmowanego stanowiska (zmienna $\text{CZY\_KIER}$), zastosowano test niezależności chi-kwadrat Pearsona. Wyniki testu przedstawiono w tabeli poniżej.
+
+W celu weryfikacji hipotezy o niezależności stopnia zadowolenia ze
+szkolenia w kontekście dopasowania do indywidualnych potrzeb (zmienna
+$\text{PYT\_2}$) oraz zajmowanego stanowiska (zmienna
+$\text{CZY\_KIER}$), zastosowano test niezależności chi-kwadrat
+Pearsona. Wyniki testu przedstawiono w tabeli poniżej.
+
 ```{r}
 tab_zad6 <- table(dane$PYT_2, dane$CZY_KIER)
 
@@ -270,7 +365,10 @@ wynik_zad6$Decyzja = ifelse(wynik_zad6$P_value < 0.01,
 kable(wynik_zad6, digits = 6,
       caption = "Wyniki testu chi-kwadrat niezależności (PYT_2 vs CZY_KIER)")
 ```
-Teraz, porównamy wyniki testu Chi-kwadrat z wynikami testu Freemana-Haltona.
+
+Teraz, porównamy wyniki testu Chi-kwadrat z wynikami testu
+Freemana-Haltona.
+
 ```{r}
 porownanie <- data.frame(
   Metoda = c("Freeman–Halton", "Chi-kwadrat Pearsona"),
@@ -285,7 +383,22 @@ porownanie <- data.frame(
 knitr::kable(porownanie, digits = 6,
              caption = "Porównanie wyników testów niezależności")
 ```
-Oba testy wskazują na istnienie zależności pomiędzy poziomem zadowolenia (PYT_2) a zajmowanym stanowiskiem (CZY_KIER). Różnice pomiędzy wynikami testu Freemana–Haltona oraz testu chi-kwadrat Pearsona wynikają z odmiennych własności obu metod. Test dokładny oparty na symulacji Monte Carlo wykazuje większą konserwatywność i sugeruje zależność na poziomie granicznym istotności statystycznej, podczas gdy test asymptotyczny wskazuje na wyraźną istotność. W poprzednim zadaniu dla testu Freemana-Haltona ustaliliśmy poziom istotności $\alpha=0.05$. Zauważmy, że jeżeli przyjmiemy bardziej rygorystyczny poziom istotności $\alpha=0.01$, taki jak przy teście chi-kwadrat, to brakowałoby podstaw do odrzucenia $H_0$. Przyjmując jednak $\alpha=0.05$ dla testu Freemana-Haltona oraz $\alpha=0.01$ dla testu chi-kwadrat obserwujemy zbieżność kierunku wnioskowania (odrzucenie $H_0$ w obu przypadkach), co wzmacnia tezę o istnieniu zależności między zmiennymi.
+
+Oba testy wskazują na istnienie zależności pomiędzy poziomem zadowolenia
+(PYT_2) a zajmowanym stanowiskiem (CZY_KIER). Różnice pomiędzy wynikami
+testu Freemana–Haltona oraz testu chi-kwadrat Pearsona wynikają z
+odmiennych własności obu metod. Test dokładny oparty na symulacji Monte
+Carlo wykazuje większą konserwatywność i sugeruje zależność na poziomie
+granicznym istotności statystycznej, podczas gdy test asymptotyczny
+wskazuje na wyraźną istotność. W poprzednim zadaniu dla testu
+Freemana-Haltona ustaliliśmy poziom istotności $\alpha=0.05$. Zauważmy,
+że jeżeli przyjmiemy bardziej rygorystyczny poziom istotności
+$\alpha=0.01$, taki jak przy teście chi-kwadrat, to brakowałoby podstaw
+do odrzucenia $H_0$. Przyjmując jednak $\alpha=0.05$ dla testu
+Freemana-Haltona oraz $\alpha=0.01$ dla testu chi-kwadrat obserwujemy
+zbieżność kierunku wnioskowania (odrzucenie $H_0$ w obu przypadkach), co
+wzmacnia tezę o istnieniu zależności między zmiennymi.
+
 ```{r}
 library(reshape2)
 library(ggplot2)
@@ -303,14 +416,25 @@ ggplot(df_reszty, aes(Var1, Var2, fill = value)) +
     fill = "reszty"
   )
 ```
-Wykres asocjacyjny oparty na resztach standaryzowanych wskazuje, że istotność testu chi-kwadrat wynika głównie z jednej komórki tabeli kontyngencji. Zaobserwowano istotną nadreprezentację odpowiedzi PYT_2 = 1 w grupie osób pełniących funkcje kierownicze (CZY_KIER = „Tak”) oraz odpowiadającą jej niedoreprezentację w grupie pozostałych pracowników. Pozostałe kategorie nie wykazują istotnych odchyleń od wartości oczekiwanych.
+
+Wykres asocjacyjny oparty na resztach standaryzowanych wskazuje, że
+istotność testu chi-kwadrat wynika głównie z jednej komórki tabeli
+kontyngencji. Zaobserwowano istotną nadreprezentację odpowiedzi PYT_2 =
+1 w grupie osób pełniących funkcje kierownicze (CZY_KIER = „Tak”) oraz
+odpowiadającą jej niedoreprezentację w grupie pozostałych pracowników.
+Pozostałe kategorie nie wykazują istotnych odchyleń od wartości
+oczekiwanych.
 
 ## Zadanie 7 - test niezależności oparty na ilorazie wiarogodności.
-Statystyka testowa testu niezależności opartego na ilorazie wiarogodności wynosi
-$$
+
+Statystyka testowa testu niezależności opartego na ilorazie
+wiarogodności wynosi $$
 G^2 = -2ln\lambda, \quad \lambda = \prod_{i,j}\left(\frac{n_{i+}n_{+j}}{n}\right)^{n_{ij}}
-$$
-Statystyka testowa $G^2$ dąży według rozkładu dla $n \to \infty$ do rozkładu $\chi^2_{(R-1)(C-1)}$. Poziom krytyczny wyznaczamy analogicznie do testu $\chi^2$. Przeprowadzimy ten test dla zmiennych PYT_2 i CZY_KIER z poprzedniego zadania. Ustalamy $\alpha = 0.05$.
+$$ Statystyka testowa $G^2$ dąży według rozkładu dla $n \to \infty$ do
+rozkładu $\chi^2_{(R-1)(C-1)}$. Poziom krytyczny wyznaczamy analogicznie
+do testu $\chi^2$. Przeprowadzimy ten test dla zmiennych PYT_2 i
+CZY_KIER z poprzedniego zadania. Ustalamy $\alpha = 0.05$.
+
 ```{r}
 test_niezaleznosci_G2 <- function(tablica){
 
@@ -351,12 +475,28 @@ wynik_zad7$Decyzja = ifelse(wynik_zad7$P_value < 0.05,
 kable(wynik_zad7, digits = 6,
       caption = "Wyniki testu niezależności G2 (PYT_2 vs CZY_KIER)")
 ```
-Otrzymany poziom krytyczny w teście ($p = 0.03969$) jest mniejszy od przyjętego poziomu istotności $\alpha = 0.05$, co prowadzi do decyzji o odrzuceniu hipotezy zerowej o niezależności zmiennych PYT_2 i CZY_KIER. Wynik ten jest zgodny z wynikiem testów Freemana–Haltona oraz niezależności chi-kwadrat, co wzmacnia tezę o zależności poziomu zadowolenia ze szkolenia z pełnieniem funkcji kierowniczej.
+
+Otrzymany poziom krytyczny w teście ($p = 0.03969$) jest mniejszy od
+przyjętego poziomu istotności $\alpha = 0.05$, co prowadzi do decyzji o
+odrzuceniu hipotezy zerowej o niezależności zmiennych PYT_2 i CZY_KIER.
+Wynik ten jest zgodny z wynikiem testów Freemana–Haltona oraz
+niezależności chi-kwadrat, co wzmacnia tezę o zależności poziomu
+zadowolenia ze szkolenia z pełnieniem funkcji kierowniczej.
 
 # Część III
 
 ## Zadanie 8 - związek między paleniem papierosów a śmiercią z powodu raka płuc i choroby serca
-Przeprowadzone wśród brytyjskich mężczyzn badanie trwające 20 lat wykazało, że odsetek zmarłych (na rok) z powodu raka płuc wynosił $0.00140$ wśród osób palących papierosy i $0.00010$ wśród osób niepalących. Odsetek zmarłych z powodu choroby niedokrwiennej serca wynosił $0.00669$ dla palaczy i $0.00413$ dla osób niepalących. Przeanalizujemy związek pomiędzy paleniem papierosów a śmiercią z powodu raka płuc oraz związek pomiędzy paleniem papierosów a śmiercią z powodu choroby serca. W tym celu skorzystamy z różnicy proporcji, ryzyka względnego i ilorazu szans.
+
+Przeprowadzone wśród brytyjskich mężczyzn badanie trwające 20 lat
+wykazało, że odsetek zmarłych (na rok) z powodu raka płuc wynosił
+$0.00140$ wśród osób palących papierosy i $0.00010$ wśród osób
+niepalących. Odsetek zmarłych z powodu choroby niedokrwiennej serca
+wynosił $0.00669$ dla palaczy i $0.00413$ dla osób niepalących.
+Przeanalizujemy związek pomiędzy paleniem papierosów a śmiercią z powodu
+raka płuc oraz związek pomiędzy paleniem papierosów a śmiercią z powodu
+choroby serca. W tym celu skorzystamy z różnicy proporcji, ryzyka
+względnego i ilorazu szans.
+
 ```{r}
 analiza_zwiazku <- function(p_palacze, p_niepalacy){
 
@@ -401,18 +541,48 @@ kable(
   caption = "Miary związku pomiędzy paleniem papierosów a przyczyną zgonu"
 )
 ```
-W analizie związku pomiędzy paleniem papierosów a przyczyną zgonu zastosowano trzy miary: różnicę proporcji ($RD$), ryzyko względne ($RR$) oraz iloraz szans ($OR$), które opisują zależność w ujęciu absolutnym oraz względnym.
 
-Różnica proporcji ($RD$) opisuje bezwzględną zmianę ryzyka pomiędzy grupą palaczy i niepalących. W przypadku raka płuc wynosi ona $RD=0.00130$, natomiast dla choroby niedokrwiennej serca $RD=0.00256$. Oznacza to, że w ujęciu absolutnym palenie wiąże się z większym przyrostem ryzyka zgonu z powodu choroby serca niż raka płuc, co wynika z wyższego poziomu bazowego ryzyka tej choroby w populacji.
+W analizie związku pomiędzy paleniem papierosów a przyczyną zgonu
+zastosowano trzy miary: różnicę proporcji ($RD$), ryzyko względne ($RR$)
+oraz iloraz szans ($OR$), które opisują zależność w ujęciu absolutnym
+oraz względnym.
 
-Ryzyko względne ($RR$) mierzy, ile razy większe jest ryzyko w grupie narażonej względem grupy kontrolnej. Dla raka płuc $RR\approx14$, co oznacza czternastokrotny wzrost ryzyka zgonu u palaczy. W przypadku choroby serca $RR \approx 1.62$, co wskazuje na umiarkowany, około $62\%$ wzrost ryzyka. Miara ta pokazuje, że relatywny wpływ palenia jest zdecydowanie silniejszy w przypadku raka płuc.
+Różnica proporcji ($RD$) opisuje bezwzględną zmianę ryzyka pomiędzy
+grupą palaczy i niepalących. W przypadku raka płuc wynosi ona
+$RD=0.00130$, natomiast dla choroby niedokrwiennej serca $RD=0.00256$.
+Oznacza to, że w ujęciu absolutnym palenie wiąże się z większym
+przyrostem ryzyka zgonu z powodu choroby serca niż raka płuc, co wynika
+z wyższego poziomu bazowego ryzyka tej choroby w populacji.
 
-Iloraz szans ($OR$) interpretuje stosunek szans wystąpienia zdarzenia w grupie palaczy do szans w grupie niepalących. Dla raka płuc $OR\approx14.01$, natomiast dla choroby serca $OR\approx1.63$. Wartości $OR$ są bardzo zbliżone do $RR$, co wynika z rzadkości analizowanych zdarzeń i jest zgodne z teorią statystyczną.
+Ryzyko względne ($RR$) mierzy, ile razy większe jest ryzyko w grupie
+narażonej względem grupy kontrolnej. Dla raka płuc $RR\approx14$, co
+oznacza czternastokrotny wzrost ryzyka zgonu u palaczy. W przypadku
+choroby serca $RR \approx 1.62$, co wskazuje na umiarkowany, około
+$62\%$ wzrost ryzyka. Miara ta pokazuje, że relatywny wpływ palenia jest
+zdecydowanie silniejszy w przypadku raka płuc.
 
-Podsumowując, mimo że różnica proporcji wskazuje na większy efekt absolutny dla choroby niedokrwiennej serca, to zarówno ryzyko względne, jak i iloraz szans jednoznacznie pokazują, że związek pomiędzy paleniem papierosów a śmiercią z powodu raka płuc jest zdecydowanie silniejszy niż w przypadku choroby serca.
+Iloraz szans ($OR$) interpretuje stosunek szans wystąpienia zdarzenia w
+grupie palaczy do szans w grupie niepalących. Dla raka płuc
+$OR\approx14.01$, natomiast dla choroby serca $OR\approx1.63$. Wartości
+$OR$ są bardzo zbliżone do $RR$, co wynika z rzadkości analizowanych
+zdarzeń i jest zgodne z teorią statystyczną.
+
+Podsumowując, mimo że różnica proporcji wskazuje na większy efekt
+absolutny dla choroby niedokrwiennej serca, to zarówno ryzyko względne,
+jak i iloraz szans jednoznacznie pokazują, że związek pomiędzy paleniem
+papierosów a śmiercią z powodu raka płuc jest zdecydowanie silniejszy
+niż w przypadku choroby serca.
 
 ## Zadanie 9 - obliczanie miar współzmienności
-W celu oceny zależności pomiędzy zmiennymi porządkowymi zastosowano współczynnik $\tau$ Kendalla oraz współczynnik $\gamma$ Goodmana-Kruskala. Obie miary opisują siłę oraz kierunek zależności monotonicznej, przy czym $\gamma$ nie uwzględnia remisów, co często skutkuje wyższymi wartościami bezwzględnymi w porównaniu do $\tau$. Na podstawie wyników podanych w poniższej tabeli ocenimy, czy istnieje zależność monotoniczna.
+
+W celu oceny zależności pomiędzy zmiennymi porządkowymi zastosowano
+współczynnik $\tau$ Kendalla oraz współczynnik $\gamma$
+Goodmana-Kruskala. Obie miary opisują siłę oraz kierunek zależności
+monotonicznej, przy czym $\gamma$ nie uwzględnia remisów, co często
+skutkuje wyższymi wartościami bezwzględnymi w porównaniu do $\tau$. Na
+podstawie wyników podanych w poniższej tabeli ocenimy, czy istnieje
+zależność monotoniczna.
+
 ```{r}
 library(DescTools)
 
@@ -444,13 +614,34 @@ knitr::kable(
   caption = "Współczynniki Tau i Gamma"
 )
 ```
-**PYT_2 vs CZY_KIER:** Zmienna dychotomiczna CZY_KIER została potraktowana jako porządkowa przy założeniu, że stanowisko kierownicze oznacza wyższy szczebel w hierarchii organizacyjnej. Uzyskane wartości ($\tau \approx −0.013$, $\gamma \approx −0.034$) wskazują na praktyczny brak zależności monotonicznej pomiędzy poziomem zadowolenia ze szkolenia a zajmowanym stanowiskiem. Wartości bliskie zeru oznaczają, że zmienne są w przybliżeniu niezależne, a ewentualna zależność jest marginalna i nieistotna interpretacyjnie. Ujemny znak wskazuje na bardzo słabą tendencję odwrotną, jednak jej siła jest pomijalna.
 
-**PYT_2 vs STAŻ:** W przypadku zależności pomiędzy poziomem zadowolenia a stażem pracy ($\tau\approx0.048$, $\gamma\approx0.091$) obserwuje się bardzo słabą dodatnią zależność monotoniczną. Oznacza to, że wraz ze wzrostem stażu pracy można zaobserwować minimalną tendencję wzrostu poziomu zadowolenia, jednak siła tej zależności jest niewielka i ma ograniczone znaczenie praktyczne.
+**PYT_2 vs CZY_KIER:** Zmienna dychotomiczna CZY_KIER została
+potraktowana jako porządkowa przy założeniu, że stanowisko kierownicze
+oznacza wyższy szczebel w hierarchii organizacyjnej. Uzyskane wartości
+($\tau \approx −0.013$, $\gamma \approx −0.034$) wskazują na praktyczny
+brak zależności monotonicznej pomiędzy poziomem zadowolenia ze szkolenia
+a zajmowanym stanowiskiem. Wartości bliskie zeru oznaczają, że zmienne
+są w przybliżeniu niezależne, a ewentualna zależność jest marginalna i
+nieistotna interpretacyjnie. Ujemny znak wskazuje na bardzo słabą
+tendencję odwrotną, jednak jej siła jest pomijalna.
 
-**CZY_KIER vs STAŻ:** Dla pary zmiennych opisujących stanowisko kierownicze i staż pracy uzyskano wartości ($\tau\approx0.282$, $\gamma\approx0.753$, co wskazuje na wyraźną dodatnią zależność monotoniczną. Oznacza to, że osoby z dłuższym stażem pracy znacznie częściej zajmują stanowiska kierownicze. Wysoka wartość gamma potwierdza silny związek, natomiast niższa wartość tau wynika z uwzględnienia licznych remisów w danych.
+**PYT_2 vs STAŻ:** W przypadku zależności pomiędzy poziomem zadowolenia
+a stażem pracy ($\tau\approx0.048$, $\gamma\approx0.091$) obserwuje się
+bardzo słabą dodatnią zależność monotoniczną. Oznacza to, że wraz ze
+wzrostem stażu pracy można zaobserwować minimalną tendencję wzrostu
+poziomu zadowolenia, jednak siła tej zależności jest niewielka i ma
+ograniczone znaczenie praktyczne.
+
+**CZY_KIER vs STAŻ:** Dla pary zmiennych opisujących stanowisko
+kierownicze i staż pracy uzyskano wartości ($\tau\approx0.282$,
+$\gamma\approx0.753$, co wskazuje na wyraźną dodatnią zależność
+monotoniczną. Oznacza to, że osoby z dłuższym stażem pracy znacznie
+częściej zajmują stanowiska kierownicze. Wysoka wartość gamma potwierdza
+silny związek, natomiast niższa wartość tau wynika z uwzględnienia
+licznych remisów w danych.
 
 ## Zadanie 10 - analiza korespondencji
+
 ```{r}
 
 analiza_korespondencji <- function(N, typ_wykresu = "principal") {
@@ -650,7 +841,10 @@ analiza_korespondencji <- function(N, typ_wykresu = "principal") {
 }
 ```
 
-Do dokładniejszego zbadania zależności między stopniem zadowolenia ze szkoleń w pierwszym okresie a długością stażu, posłużymy się analizą korespondencji. Tabela dwuwymiarowa tego przypadku wygląda następująco.
+Do dokładniejszego zbadania zależności między stopniem zadowolenia ze
+szkoleń w pierwszym okresie a długością stażu, posłużymy się analizą
+korespondencji. Tabela dwuwymiarowa tego przypadku wygląda następująco.
+
 ```{r}
 tab <- table(dane$STAŻ, dane$PYT_2)
 
@@ -683,15 +877,42 @@ tabela_inercji <- data.frame(
 kable(tabela_inercji, align = "c", caption="Tabela inercji")
 ```
 
-Zauważmy, że całkowita inercja wyniosła $0.1306$, co wskazuje na istnienie umiarkowanej zależności pomiędzy zmiennymi. Pierwszy wymiar analizy wyjaśnia $86.7\%$ całkowitej inercji, natomiast drugi wymiar jedynie $13.3\%$, co oznacza, że struktura zależności ma w praktyce charakter jednowymiarowy i może być interpretowana głównie wzdłuż pierwszej osi. Na podstawie mapy percepcyjnej można zauważyć, że kategorie wyższego poziomu zadowolenia ($\text{PYT\_2} = 2$) są zbliżone do grup o dłuższym stażu pracy, co wskazuje na dodatnią zależność pomiędzy doświadczeniem zawodowym a oceną dopasowania szkolenia. Kategorie niskiego zadowolenia są natomiast bardziej oddalone i powiązane z krótszym stażem pracy. Uzyskane wyniki potwierdzają istnienie strukturalnej zależności pomiędzy analizowanymi zmiennymi, przy czym dominującą rolę odgrywa pierwszy wymiar przestrzeni korespondencji.
+Zauważmy, że całkowita inercja wyniosła $0.1306$, co wskazuje na
+istnienie umiarkowanej zależności pomiędzy zmiennymi. Pierwszy wymiar
+analizy wyjaśnia $86.7\%$ całkowitej inercji, natomiast drugi wymiar
+jedynie $13.3\%$, co oznacza, że struktura zależności ma w praktyce
+charakter jednowymiarowy i może być interpretowana głównie wzdłuż
+pierwszej osi. Na podstawie mapy percepcyjnej można zauważyć, że
+kategorie wyższego poziomu zadowolenia ($\text{PYT\_2} = 2$) są zbliżone
+do grup o dłuższym stażu pracy, co wskazuje na dodatnią zależność
+pomiędzy doświadczeniem zawodowym a oceną dopasowania szkolenia.
+Kategorie niskiego zadowolenia są natomiast bardziej oddalone i
+powiązane z krótszym stażem pracy. Uzyskane wyniki potwierdzają
+istnienie strukturalnej zależności pomiędzy analizowanymi zmiennymi,
+przy czym dominującą rolę odgrywa pierwszy wymiar przestrzeni
+korespondencji.
 
 # Część Dodatkowa
+
 ## Zadanie 1 - test oparty na korelacji odległości
-Test oparty o korelację odległości służy do oceny niezależności dwóch zmiennych losowych. W przeciwieństwie do klasycznej korelacji Pearsona, metoda ta wykrywa zarówno zależności liniowe, jak i nieliniowe dowolnego typu. Procedura opiera się na przekształceniu obserwacji do macierzy odległości euklidesowych, które następnie poddawane są podwójnemu centrowaniu (usunięciu efektów średnich wierszy, kolumn oraz średniej globalnej). Na podstawie tak przetworzonych macierzy obliczana jest statystyka korelacji odległości, będąca unormowaną miarą zgodności struktur odległości w obu zmiennych. Istotność statystyki oceniana jest metodą permutacyjną, w której wielokrotnie losowo przestawia się wartości jednej ze zmiennych, niszcząc ewentualną zależność. Następnie porównuje się wartość obserwowaną statystyki z rozkładem empirycznym uzyskanym z permutacji. Wartość poziomu krytycznego obliczymy stosując korelację odległości $dCor$
-$$
+
+Test oparty o korelację odległości służy do oceny niezależności dwóch
+zmiennych losowych. W przeciwieństwie do klasycznej korelacji Pearsona,
+metoda ta wykrywa zarówno zależności liniowe, jak i nieliniowe dowolnego
+typu. Procedura opiera się na przekształceniu obserwacji do macierzy
+odległości euklidesowych, które następnie poddawane są podwójnemu
+centrowaniu (usunięciu efektów średnich wierszy, kolumn oraz średniej
+globalnej). Na podstawie tak przetworzonych macierzy obliczana jest
+statystyka korelacji odległości, będąca unormowaną miarą zgodności
+struktur odległości w obu zmiennych. Istotność statystyki oceniana jest
+metodą permutacyjną, w której wielokrotnie losowo przestawia się
+wartości jednej ze zmiennych, niszcząc ewentualną zależność. Następnie
+porównuje się wartość obserwowaną statystyki z rozkładem empirycznym
+uzyskanym z permutacji. Wartość poziomu krytycznego obliczymy stosując
+korelację odległości $dCor$ $$
   dCor(X, Y) = \frac{dCov(X,Y)}{\sqrt{dVar(x)dVar(Y)}},
-$$
-gdzie $dCov$ oznacza kowariancję odległości, a $dVar$ wariancję odległości.
+$$ gdzie $dCov$ oznacza kowariancję odległości, a $dVar$ wariancję
+odległości.
 
 ```{r}
 double_center <- function(D) {
@@ -741,15 +962,14 @@ test_korelacji_odleglosci <- function(x, y, R = 999) {
 
 ```
 
-Test ten przeprowadzimy dla dwóch przypadków. W pierwszym wygenerowano dwie niezależne próbki z rozkładu normalnego
-$$
+Test ten przeprowadzimy dla dwóch przypadków. W pierwszym wygenerowano
+dwie niezależne próbki z rozkładu normalnego $$
 X \sim N(0, 1) \quad Y\sim N(0,1).
-$$
-W drugim przypadku wygenerowano dwie próbki zależne nieliniowo
-$$
+$$ W drugim przypadku wygenerowano dwie próbki zależne nieliniowo $$
 X \sim N(0, 1) \quad Y = X^2 + \epsilon,
-$$
-gdzie $\epsilon \sim N(0, 0.5^2)$. Dla testu przyjmujemy poziom istotności $\alpha = 0.05$. Wyniki przedstawiono w poniższej tabelce
+$$ gdzie $\epsilon \sim N(0, 0.5^2)$. Dla testu przyjmujemy poziom
+istotności $\alpha = 0.05$. Wyniki przedstawiono w poniższej tabelce
+
 ```{r}
 set.seed(123)
 
@@ -790,39 +1010,163 @@ knitr::kable(
   caption = "Test korelacji odległości"
 )
 ```
-Wyniki testu są zgodne z oczekiwaniami. W pierwszym przypadku p-value jest ostro większe od przyjętego poziomu istotności ($0.659 > 0.05$), zatem nie mamy podstaw do odrzucenia hipotezy $H_0$ o niezależności. Z kolei w drugim przypadku p-value jest znacząco mniejsze od poziomu istotności ($0.001 < 0.05$), zatem podjęta zostaje decyzja o odrzuceniu $H_0$.
+
+Wyniki testu są zgodne z oczekiwaniami. W pierwszym przypadku p-value
+jest ostro większe od przyjętego poziomu istotności ($0.659 > 0.05$),
+zatem nie mamy podstaw do odrzucenia hipotezy $H_0$ o niezależności. Z
+kolei w drugim przypadku p-value jest znacząco mniejsze od poziomu
+istotności ($0.001 < 0.05$), zatem podjęta zostaje decyzja o odrzuceniu
+$H_0$.
 
 ## Zadanie 2 - Związek ryyka względnego (RR) i ilorazu szans (OR)
-Pokażemy, że wartość ryzyka względnego ($RR$) nie jest bardziej oddalona od wartości $1$ (oznaczającej brak zależności) niż wartość ilorazu szans ($OR$). Niech $\pi_1$ oraz $\pi_2$ oznaczają prawdopodobieństwa sukcesu w dwóch badanych grupach (zakładamy $\pi_1, \pi_2 \in (0,1)$). Ryzyko względne oraz iloraz szans definiujemy jako:
-$$
+
+Pokażemy, że wartość ryzyka względnego ($RR$) nie jest bardziej oddalona
+od wartości $1$ (oznaczającej brak zależności) niż wartość ilorazu szans
+($OR$). Niech $\pi_1$ oraz $\pi_2$ oznaczają prawdopodobieństwa sukcesu
+w dwóch badanych grupach (zakładamy $\pi_1, \pi_2 \in (0,1)$). Ryzyko
+względne oraz iloraz szans definiujemy jako: $$
 RR = \frac{\pi_1}{\pi_2} \quad OR = \frac{\frac{\pi_1}{1-\pi_1}}{\frac{\pi_2}{1-\pi_2}} = \frac{\pi_1(1-\pi_2)}{\pi_2(1-\pi_1)}.
-$$
-Możemy zatem powiązać ze sobą $OR$ i $RR$ 
-$$
+$$ Możemy zatem powiązać ze sobą $OR$ i $RR$ $$
 OR = RR \cdot \frac{1-\pi_2}{1-\pi_1}
-$$
-Rozważmy trzy możliwe scenariusze
+$$ Rozważmy trzy możliwe scenariusze
 
-1. Jeśli $RR > 1$, to $\pi_1 > \pi_2$. Z tego wynika
-$$
-1-\pi_1 < 1-\pi_2 \implies \frac{1-\pi_2}{1-\pi_1} > 1.
-$$
-Wtedy $OR$ jest iloczynem $RR$ i liczby większej od $1$, więc
-$$
-OR > RR > 1.
-$$
-2. Jeśli $RR < 1$, to $\pi_1 < \pi_2$. Z tego wynika
-$$
-1-\pi_1 > 1-\pi_2 \implies \frac{1-\pi_2}{1-\pi_1} < 1.
-$$
-Wtedy $OR$ jest iloczynem $RR$ i liczby z przedziału $(0, 1)$, więc
-$$
-0 < OR < RR < 1.
-$$
-3. Jeśli $RR = 1$, to 
-$$
-\pi_1 = \pi_2 \implies \frac{1-\pi_2}{1-\pi_1} = 1.
-$$
-Wtedy $OR = RR = 1$.
+1.  Jeśli $RR > 1$, to $\pi_1 > \pi_2$. Z tego wynika $$
+    1-\pi_1 < 1-\pi_2 \implies \frac{1-\pi_2}{1-\pi_1} > 1.
+    $$ Wtedy $OR$ jest iloczynem $RR$ i liczby większej od $1$, więc $$
+    OR > RR > 1.
+    $$
+2.  Jeśli $RR < 1$, to $\pi_1 < \pi_2$. Z tego wynika $$
+    1-\pi_1 > 1-\pi_2 \implies \frac{1-\pi_2}{1-\pi_1} < 1.
+    $$ Wtedy $OR$ jest iloczynem $RR$ i liczby z przedziału $(0, 1)$,
+    więc $$
+    0 < OR < RR < 1.
+    $$
+3.  Jeśli $RR = 1$, to $$
+    \pi_1 = \pi_2 \implies \frac{1-\pi_2}{1-\pi_1} = 1.
+    $$ Wtedy $OR = RR = 1$.
 
-Podsumowując, w każdym przypadku iloraz szans $OR$ zawsze przyjmuje wartość równie lub bardziej oddaloną od jedynki niż ryzyko względne $RR$.
+Podsumowując, w każdym przypadku iloraz szans $OR$ zawsze przyjmuje
+wartość równie lub bardziej oddaloną od jedynki niż ryzyko względne
+$RR$.
+
+## Zadanie dodatkowe 3: Analiza ryzyka przypisanego (AR)
+
+### Podpunkt a) Definicja i interpretacja merytoryczna miary
+
+W badaniach epidemiologicznych ryzyko przypisane populacji (ang.
+*Population Attributable Fraction* – PAF), oznaczane w literaturze oraz
+treści zadania jako $AR$, definiuje się następującym wzorem:
+
+$$AR = \frac{P(D) - P(D \mid E')}{P(D)}$$
+
+gdzie poszczególne symbole oznaczają: - $D$ – stan chorobowy (posiadanie
+danej choroby), - $E$ – ekspozycję na określony czynnik ryzyka (np.
+palenie tytoniu, zanieczyszczenie środowiska), - $E'$ – brak ekspozycji
+na ten czynnik ryzyka (zdarzenie przeciwne do $E$, gdzie
+$P(E') = 1 - P(E)$).
+
+#### Interpretacja pojęciowa:
+
+1.  **Analiza licznika (**$P(D) - P(D \mid E')$): Licznik tego ułamka
+    reprezentuje tzw. *nadwyżkę ryzyka w populacji*. Od całkowitego,
+    obserwowanego prawdopodobieństwa wystąpienia choroby w całym
+    społeczeństwie ($P(D)$) odejmujemy teoretyczne prawdopodobieństwo
+    zachorowania, jakie panowałoby w tym społeczeństwie, gdyby
+    całkowicie wyeliminować badany czynnik ryzyka ($P(D \mid E')$ –
+    czyli ryzyko wśród osób nieeksponowanych). Ta różnica pokazuje, jaka
+    część ogólnego ryzyka wynika bezpośrednio i wyłącznie z obecności
+    czynnika ryzyka w środowisku.
+
+2.  **Analiza całej miary (**$AR$): Dzieląc wyznaczoną nadwyżkę przez
+    całkowite prawdopodobieństwo $P(D)$, dokonujemy standaryzacji.
+    Wskaźnik $AR$ określa zatem **odsetek (lub proporcję) wszystkich
+    przypadków danej choroby w całej populacji, które można bezpośrednio
+    przypisać działaniu tego konkretnego czynnika ryzyka**.
+
+3.  **Zastosowanie w zdrowiu publicznym:** Miara ta odpowiada na
+    fundamentalne pytanie o charakterze prewencyjnym: *O ile procent
+    spadłaby liczba chorych w populacji, gdybyśmy całkowicie
+    wyeliminowali ten czynnik ryzyka ze środowiska?* \* **Przykład:**
+    Jeżeli w badaniach nad rakiem płuc i paleniem tytoniu uzyskamy wynik
+    $AR = 0.85$, oznacza to, że aż 85% wszystkich zachorowań na raka
+    płuc w populacji jest spowodowane paleniem. Gdyby wszyscy palacze
+    natychmiast zerwali z nałogiem, liczba nowych zachorowań spadłaby o
+    85%.
+
+------------------------------------------------------------------------
+
+### Podpunkt b) Dowód matematyczny związku AR z ryzykiem względnym (RR)
+
+Mamy wykazać, że zachodzi tożsamość:
+
+$$AR = \frac{P(E)(RR - 1)}{1 + P(E)(RR - 1)}$$
+
+przy założeniu, że ryzyko względne zdefiniowane jest jako
+$RR = \frac{P(D \mid E)}{P(D \mid E')}$.
+
+#### Przeprowadzenie dowodu:
+
+**Krok 1: Rozpisanie całkowitego prawdopodobieństwa choroby** $P(D)$.
+Korzystając z twierdzenia o prawdopodobieństwie całkowitym, możemy
+zapisać prawdopodobieństwo zdarzenia $D$ jako sumę ważoną
+prawdopodobieństw warunkowych względem stanu ekspozycji ($E$ oraz $E'$):
+
+$$P(D) = P(D \mid E) \cdot P(E) + P(D \mid E') \cdot P(E')$$
+
+Wiedząc, że $P(E') = 1 - P(E)$, podstawiamy tę zależność do równania:
+
+$$P(D) = P(D \mid E) \cdot P(E) + P(D \mid E') \cdot (1 - P(E))$$
+
+**Krok 2: Powiązanie składników z ryzykiem względnym (**$RR$). Z
+definicji $RR = \frac{P(D \mid E)}{P(D \mid E')}$ wynika bezpośrednio,
+że:
+
+$$P(D \mid E) = RR \cdot P(D \mid E')$$
+
+Podstawiamy to wyrażenie do wzoru na $P(D)$ uzyskanego w Kroku 1:
+
+$$P(D) = \left[ RR \cdot P(D \mid E') \right] \cdot P(E) + P(D \mid E') - P(D \mid E') \cdot P(E)$$
+
+Wyciągamy wspólny czynnik $P(D \mid E')$ przed nawias:
+
+$$P(D) = P(D \mid E') \cdot \left[ RR \cdot P(E) + 1 - P(E) \right]$$
+
+Grupujemy wyrazy z $P(E)$ wewnątrz nawiasu kwadratowego, co daje
+ostateczną postać mianownika:
+
+$$P(D) = P(D \mid E') \cdot \left[ 1 + P(E)(RR - 1) \right]$$
+
+**Krok 3: Przekształcenie i podstawienie do wzoru wyjściowego** $AR$.
+Przekształćmy najpierw sam licznik wzoru definicyjnego $AR$,
+podstawiając do niego wyznaczoną przed chwilą postać $P(D)$:
+
+$$\text{Licznik} = P(D) - P(D \mid E')$$
+$$\text{Licznik} = P(D \mid E') \cdot \left[ 1 + P(E)(RR - 1) \right] - P(D \mid E')$$
+
+Wyciągamy ponownie $P(D \mid E')$ przed nawias:
+
+$$\text{Licznik} = P(D \mid E') \cdot \left[ 1 + P(E)(RR - 1) - 1 \right] = P(D \mid E') \cdot P(E)(RR - 1)$$
+
+Teraz podstawiamy zarówno przekształcony Licznik, jak i Mianownik
+($P(D)$ z Kroku 2) do głównego wzoru na ryzyko przypisane:
+
+$$AR = \frac{P(D \mid E') \cdot P(E)(RR - 1)}{P(D \mid E') \cdot \left[ 1 + P(E)(RR - 1) \right]}$$
+
+Zakładając, że prawdopodobieństwo wystąpienia choroby u osób
+nieeksponowanych jest niezerowe ($P(D \mid E') > 0$), możemy bezpiecznie
+skrócić ten człon w liczniku i mianowniku ułamka:
+
+$$AR = \frac{P(E)(RR - 1)}{1 + P(E)(RR - 1)}$$
+
+**Co kończy dowód.**
+
+#### Wniosek praktyczny z wyprowadzonej zależności:
+
+Udowodniona zależność ma potężne znaczenie aplikacyjne w epidemiologii.
+Pokazuje ona, że aby obliczyć populacyjne ryzyko przypisane ($AR$),
+**nie musimy znać bezwzględnych wskaźników zapadalności na daną chorobę
+w populacji (**$P(D)$). Do pełnej kalkulacji wystarczą nam jedynie dwa
+parametry: 1. $P(E)$ – czyli rozpowszechnienie (prewalencja) czynnika
+ryzyka w społeczeństwie (np. odsetek osób palących, łatwy do oszacowania
+z badań ankietowych), 2. $RR$ – czyli relatywna siła tego czynnika
+(wyznaczana z medycznych badań kohortowych).
