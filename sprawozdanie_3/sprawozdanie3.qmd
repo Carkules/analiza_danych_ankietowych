@@ -1,0 +1,634 @@
+---
+title: "Analiza Danych Ankietowych - Raport nr 3"
+author: "Jakub Bartłomowicz, Konrad Słotta"
+date: "`r Sys.Date()`"
+lang: pl
+format: 
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+    geometry: "left=2cm,right=2cm,top=2cm,bottom=2cm"
+execute:
+  echo: false
+  warning: false
+  message: false
+  tidy: true
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+```{r}
+library(dplyr)
+library(knitr)
+library(DescTools)
+
+dane <- read.csv2("ankieta2.csv")
+
+dane <- dane %>%
+  mutate(
+    WIEK_KAT = case_when(
+      WIEK <= 35 ~ "do 35 lat",
+      WIEK >= 36 & WIEK <= 45 ~ "36-45 lat",
+      WIEK >= 46 & WIEK <= 55 ~ "46-55 lat",
+      WIEK > 55 ~ "powyżej 55 lat"
+    ),
+    WIEK_KAT = factor(WIEK_KAT, levels = c("do 35 lat", "36-45 lat", 
+                                           "46-55 lat", "powyżej 55 lat")),
+    CZY_ZADOW = case_when(
+      PYT_2 > 0 ~ "Tak",
+      PYT_2 < 0 ~ "Nie"
+    ),
+    CZY_ZADOW_2 = case_when(
+      PYT_3 > 0 ~ "Tak",
+      PYT_3 < 0 ~ "Nie"
+    ),
+    CZY_ZADOW = factor(CZY_ZADOW, levels = c("Nie", "Tak")),
+    CZY_ZADOW_2 = factor(CZY_ZADOW_2, levels = c("Nie", "Tak")),
+    CZY_KIER = factor(CZY_KIER, levels = c("Nie", "Tak")),
+    PŁEĆ = factor(PŁEĆ, levels = c("K", "M")),
+    STAŻ = factor(STAŻ)
+  )
+```
+
+# Część I
+
+## Zadanie 1 - Warunkowy test symetrii
+W tym zadaniu napiszemy funkcję zwracającą p-wartość omówionego na wykładzie testu symetrii w przypadku tabeli $2\times2$. W teście tym weryfikuje się hipotezę o jednorodności rozkładów brzegowych. Wyniki powtarzalnego badania dla cechy dychotomicznej (posiadającej $I=2$ możliwe warianty odpowiedzi) przedstawia się w następującej tabeli dwudzielczej:
+```{r}
+#| label: tbl-zad1
+library(knitr)
+library(kableExtra)
+
+tabela_dane <- data.frame(
+  `Okres 1` = c("Wariant 1 (Sukces)", "Wariant 2 (Porażka)"),
+  `Wariant 1 (Sukces)` = c("y11", "y21"),
+  `Wariant 2 (Porażka)` = c("y12", "y22"),
+  check.names = FALSE
+)
+
+tabela_dane %>%
+  kable(
+    align = "c",
+    col.names = c("Okres 1", "Wariant 1 (Sukces)", "Wariant 2 (Porażka)"),
+    caption = "Tabela dwudzielcza"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "bordered", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  ) %>%
+
+  add_header_above(c(" " = 1, "Okres 2" = 2))
+```
+Gdzie $y_{11}$ oraz $y_{22}$ to liczności obserwacji stałych (respondenci, którzy w obu okresach odpowiedzieli tak samo). Natomiast $y_{12}$ oraz $y_{21}$ to liczności obserwacji zmiennych (respondenci, u których nastąpiła zmiana opinii/stanu w przeciwnych kierunkach).
+
+Hipotezy statystyczne w teście symetrii definiuje się jako:
+
+- $H_0: p_{12}=p_{21}$ - prawdopodobieństwo zmiany z wariantu 1 na 2 jest równe prawdopodobieństwu zmiany z wariantu 2 na 1,
+
+- $H_1: p_{12}\neq p_{21}$ - występuje istotna asymetria kierunku zmian, co oznacza wpływ badanego zdarzenia.
+
+Analiza w tym teście opiera się wyłącznie na osobach, u których doszło do zmiany preferencji. Liczba tych osób stanowi sumę marginalną elementów poza przekątną tabeli: $n^* = y_{12} + y_{21}$. Przy założeniu prawdziwości hipotezy zerowej ($H_0$), oczekujemy, że zmiany rozłożą się symetrycznie (prawdopodobieństwo sukcesu w każdą stronę wynosi dokładnie $\frac{1}{2}$). Wobec tego zmienna losowa $y_{12}$ pod warunkiem ustalonej sumy $n^*$ podlega rozkładowi dwumianowemu:
+$$
+y_{12} \mid (y_{12} + y_{21} = n^*) \sim B\left(n^*, \frac{1}{2}\right)
+$$
+P-wartość definiowana jest jako prawdopodobieństwo uzyskania konfiguracji danych co najmniej tak samo skrajnie odchylonej od idealnej symetrii, jak wartość zaobserwowana ($y_{12}$). Ze względu na dwustronny charakter testu, algorytm obliczeniowy dzieli się na trzy ścieżki w zależności od relacji między zmiennymi:
+
+$$
+p = 
+\begin{cases}
+2 \sum_{i=0}^{y_{12}} P(X = i), & y_{12} < \frac{n^*}{2}, \\
+2 \sum_{i=y_{12}}^{n^*} P(X = i), & y_{12} > \frac{n^*}{2}, \\
+1, & y_{12}=y_{21},
+\end{cases}
+$$
+gdzie $X \sim B\left(n^*, \frac{1}{2}\right)$. Test ten przeprowadzimy dla poniższej przykładowej tabeli.
+
+```{r}
+#| label: tbl-zad1-2
+tabela_ankiety <- matrix(c(20,  2, 
+                           11, 35), 
+                         nrow = 2, byrow = TRUE)
+
+tabela_dane <- data.frame(
+  `Okres 1` = c("Wariant 1 (Sukces)", "Wariant 2 (Porażka)"),
+  `Wariant 1 (Sukces)` = c(tabela_ankiety[1, 1], tabela_ankiety[2, 1]),
+  `Wariant 2 (Porażka)` = c(tabela_ankiety[1, 2], tabela_ankiety[2, 2]),
+  check.names = FALSE
+)
+
+tabela_dane %>%
+  kable(
+    align = "c",
+    col.names = c("Okres 1", "Wariant 1 (Sukces)", "Wariant 2 (Porażka)"),
+    caption = "Przykładowa tabela"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "bordered", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  ) %>%
+
+  add_header_above(c(" " = 1, "Okres 2" = 2))
+```
+
+```{r}
+warunkowy_test_symetrii <- function(macierz) {
+  y12 <- macierz[1, 2]
+  y21 <- macierz[2, 1]
+
+  n_star <- y12 + y21
+  
+  if (n_star == 0) {
+    return(1.0)
+  }
+  
+  if (y12 == y21) {
+    p_value <- 1.0
+    
+  } else if (y12 < n_star / 2) {
+    p_value <- 2 * pbinom(y12, size = n_star, prob = 0.5)
+    
+  } else {
+    p_value <- 2 * sum(dbinom(y12:n_star, size = n_star, prob = 0.5))
+  }
+  
+  return(p_value)
+}
+```
+
+```{r}
+p <- warunkowy_test_symetrii(tabela_ankiety)
+```
+Korzystając z napisanej funkcji otrzymujemy p-value równe `r p`. Przyjmując poziom istotności $\alpha = 0.05$ należy odrzucić hipotezę zerową o symetrii. Oznacza to, że badany czynnik wywarł realny wpływ na respondentów.
+
+## Zadanie 2 - Reakcje na lek
+W poniższej tabeli przedstawiono dane dotyczące reakcji na lek po godzinie od jego przyjęcia dla różnych leków przeciwbólowych stosowanych w migrenie. Leki zostały zaaplikowane grupie pacjentów w dwóch różnych atakach bólowych. 
+```{r}
+#| label: tbl-zad2
+tabela_leki <- matrix(c(1,  5, 
+                           2, 4), 
+                         nrow = 2, byrow = TRUE)
+
+tabela_dane <- data.frame(
+  `Reakcja na lek A` = c("Negatywna", "Pozytywna"),
+  `Negatywna` = c(tabela_leki[1, 1], tabela_leki[2, 1]),
+  `Pozytywna` = c(tabela_leki[1, 2], tabela_leki[2, 2]),
+  check.names = FALSE
+)
+
+tabela_dane %>%
+  kable(
+    align = "c",
+    col.names = c("Reakcja na lek A", "Negatywna", "Pozytywna"),
+    caption = "Dane dotyczące reakcji na lek"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "bordered", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  ) %>%
+
+  add_header_above(c(" " = 1, "Reakcja na lek B" = 2))
+```
+Korzystając z warunkowego testu symetrii z poprzedniego zadania oraz testu McNemara z poprawką na ciągłość zweryfikujemy hipotezę, że leki te są jednakowo skuteczne. Wyniki przedstawiono w poniższej tabeli.
+```{r}
+#| label: tbl-zad2-2
+
+wyniki_zad2 <- data.frame(
+  `Test` = c("warunkowy", "McNemara"),
+  `p_value` = c(round(warunkowy_test_symetrii(tabela_leki), 3), round(mcnemar.test(tabela_leki)$p.value, 3)),
+  `alfa` = c(0.05, 0.05)
+)
+
+wyniki_zad2$Decyzja = ifelse(wyniki_zad2$p_value < wyniki_zad2$alfa, 
+                             "Odrzucenie H0", 
+                             "Brak podstaw do odrzucenia H0")
+
+wyniki_zad2 %>%
+  kable(
+    align = "c",
+    col.names = c("Zastosowany test", "p-wartość", "Poziom istotności (alfa)", "Decyzja"),
+    caption = "Wyniki przeprowadzonych testów dotyczących skuteczności leków"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "bordered", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  )
+```
+W obu przeprowadzonych testach otrzymaliśmy p-wartość równą około $0.45$, co jest wynikiem znacznie większym od przyjętego poziomu istotności $\alpha = 0.05$. Zatem mamy brak podstaw do odrzucenia hipotezy zerowej. Oznacza to, że na podstawie przyjętych danych obydwa leki są jednakowo skuteczne.
+
+## Zadanie 3 - Zadowolenie ze szkoleń
+Na podstawie danych dotyczących pewnej firmy przeanalizujemy, czy zadowolenie ze szkoleń w pierwszym i drugim badanym okresie odpowiada modelowi symetrii. Do analizy posłużą nam zmienne CZY_ZADOW oraz CZY_ZADOW_2, których rozkład odpowiedzi został przedstawiony w poniższej tabeli.
+```{r}
+#| label: tbl-zad3
+tabela_zadow <- table(dane$CZY_ZADOW, dane$CZY_ZADOW_2)
+
+tabela_zadow %>%
+  kable(
+    align = "c",
+    col.names = c("Zadowolenie w 1 okresie", "Nie", "Tak"),
+    caption = "Dane dotyczące zadowolenia"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "bordered", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  ) %>%
+
+  add_header_above(c(" " = 1, "Zadowolenie w 2 okresie" = 2))
+```
+Ponownie przeprowadzono test warunkowy oraz test McNemara z poprawką na ciągłość.
+```{r}
+#| label: tbl-zad3-2
+
+wyniki_zad3 <- data.frame(
+  `Test` = c("warunkowy", "McNemara"),
+  `p_value` = c(round(warunkowy_test_symetrii(tabela_zadow), 3), round(mcnemar.test(tabela_zadow)$p.value, 3)),
+  `alfa` = c(0.05, 0.05)
+)
+
+wyniki_zad3$Decyzja = ifelse(wyniki_zad3$p_value < wyniki_zad3$alfa, 
+                             "Odrzucenie H0", 
+                             "Brak podstaw do odrzucenia H0")
+
+wyniki_zad3 %>%
+  kable(
+    align = "c",
+    col.names = c("Zastosowany test", "p-wartość", "Poziom istotności (alfa)", "Decyzja"),
+    caption = "Wyniki przeprowadzonych testów dotyczących zadowolenia ze szkoleń"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "bordered", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  )
+```
+
+Na podstawie przeprowadzonych analiz nie możemy wnioskować, że poziom zadowolenia ze szkoleń nie uległ zmianie. Zarówno warunkowy test symetrii ($p = 0.036$), jak i test McNemara ($p = 0.038$)  dały p-wartości poniżej przyjętego poziomu istotności $\alpha = 0.05$. Oznacza to statystycznie istotną podstawę do odrzucenia hipotezy zerowej o symetrii na rzecz hipotezy alternatywnej. W strukturze odpowiedzi wystąpiła wyraźna, ukierunkowana asymetria – liczba osób, które zyskały zadowolenie w drugim okresie ($y_{12} = 20$), była ponad dwukrotnie większa od liczby osób, którzy negatywnie ocenili wpływ szkoleń ($y_{21} = 8$). Zaobserwowana zmiana rozkładu brzegowego ma charakter systematyczny, co pozwala na sformułowanie wniosku, że poziom zadowolenia uczestników po upływie czasu uległ istotnej, pozytywnej zmianie i nie był dziełem czystego przypadku.
+
+## Zadanie 4 - Ocena komfortu pracy po szkoleniach
+W tej samej firmie wdrożono pewne działania w celu poprawy komfortu pracy. Następnie badaną grupę respondentów ponownie poproszono o odpowiedź na pytanie dotyczące oceny podejścia firmy do umożliwiania wdrażania wiedzy zdobytej na szkoleniach w poniższej tabeli przedstawiono tablicę dwudzielczą uwzględniającą odpowiedzi na pytanie w obu tych okresach.
+```{r}
+#| label: tbl-zad4
+
+library(knitr)
+library(kableExtra)
+
+macierz_zad4 <- matrix(c(
+  10,  2,  1,  1,  0,
+   0, 15,  1,  1,  0,
+   1,  1, 32,  6,  0,
+   0,  0,  1, 96,  3,
+   1,  1,  0,  1, 26
+), nrow = 5, byrow = TRUE)
+
+tabela_dane4 <- data.frame(
+  `Pytanie 1` = c("-2", "-1", "0", "1", "2"),
+  `-2` = macierz_zad4[, 1],
+  `-1` = macierz_zad4[, 2],
+   `0` = macierz_zad4[, 3],
+   `1` = macierz_zad4[, 4],
+   `2` = macierz_zad4[, 5],
+  check.names = FALSE
+)
+
+tabela_dane4 %>%
+  kable(
+    align = "c",
+    col.names = c("Pytanie 1", "-2", "-1", "0", "1", "2"),
+    caption = "Dane do zadania 4"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "bordered", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  ) %>%
+
+  add_header_above(c(" " = 1, "Pytanie 2" = 5))
+```
+
+W celu weryfikacji hipotezy, że odpowiedzi w pierwszym badanym okresie i w drugim okresie odpowiadają modelowi symerii skorzystamy z testu Bowkera. W przypadku dla rozmiaru tabeli większych niż $2\times2$ hipotezy wyglądają następująco
+
+- $H_0: p_{ij} = p_{ji}$ dla wszystkich $i,j = 1,\cdots,5$. Oznacza to, że rozkład prawdopodobieństwa w tabeli jest idealnie symetryczny względem głównej przekątnej. Prawdopodobieństwo, że respondent zmieni zdanie/stan z kategorii $i$ na $j$, jest dokładnie takie samo, jak prawdopodobieństwo zmiany z $j$ na $i$.
+
+- $H_0: p_{ij} \neq p_{ji}$ dla co najmniej jednej pary $(i, j)$ gdzie $i \neq j$. Oznacza to, że istnieje przynajmniej jedna para kategorii, dla której zachodzi asymetria. W badanej grupie występuje ukierunkowana, systematyczna tendencja do zmiany stanu w jedną konkretną stronę.
+
+Test Bowkera jest uogólnieniem testu McNemara dla wszystkich rozmiarów tabeli ($I$). Statystyka testowa wygląda następująco
+$$
+\chi^2 = \sum_{i=1}^{I} \sum_{j>i}^{I} \frac{(y_{ij} - y_{ji})^2}{y_{ij} + y_{ji}}
+$$
+Statystyka ta przy założeniu prawdziwości $H_0$ ma asymptotyczny rozkład chi-kwadrat ($\chi^2$) z $r$ stopniami swobody, gdzie
+$$
+r = \frac{I(I-2)}{2}.
+$$
+Na podstawie obliczonej wartości statystyki $K^2$ wyznaczana jest p-wartość jako prawostronny obszar krytyczny rozkładu chi-kwadrat:
+$$
+p = 1 - F_{\chi^2(r)}(\chi^2),
+$$
+gdzie $F_{\chi^2(r)}$ to dystrybuanta rozkładu $\chi^2$ z $r$ stopniami swobody. Wynik testu przedstawiono w poniższej tabeli.
+
+```{r}
+test_bowkera <- function(macierz_danych) {
+  K2 <- 0
+  I <- nrow(macierz_danych)
+  
+  for (i in 1:(I - 1)) {
+    for (j in (i + 1):I) {
+      mianownik <- macierz_danych[i, j] + macierz_danych[j, i]
+      
+      if (mianownik > 0) {
+        K2 <- K2 + ((macierz_danych[i, j] - macierz_danych[j, i])^2 / mianownik)
+      }
+    }
+  }
+  
+  df_bowker <- I * (I - 1) / 2
+  
+  p_value_bowker <- 1 - pchisq(K2, df = df_bowker)
+  
+  return(list(
+    statystyka = K2,
+    stopnie_swobody = df_bowker,
+    p.value = p_value_bowker
+  ))
+}
+```
+
+```{r}
+#| label: tbl-zad4-2
+
+wyniki_zad4 <- data.frame(
+  `Test` = c("Bowkera"),
+  `p_value` = c(round(test_bowkera(macierz_zad4)$p.value, 3)),
+  `alfa` = c(0.05)
+)
+
+wyniki_zad4$Decyzja = ifelse(wyniki_zad4$p_value < wyniki_zad4$alfa, 
+                             "Odrzucenie H0", 
+                             "Brak podstaw do odrzucenia H0")
+
+wyniki_zad4 %>%
+  kable(
+    align = "c",
+    col.names = c("Zastosowany test", "p-wartość", "Poziom istotności (alfa)", "Decyzja"),
+    caption = "Wyniki przeprowadzonych testów dotyczących komfortu pracy po szkoleniach"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "bordered", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  )
+```
+W teście uzyskaliśmy wynik p-wartości równy `r round(test_bowkera(macierz_zad4)$p.value, 3)` i jest on znacznie większy od przyjętego poziomu istotności $\alpha = 0.05$. Oznacza to, że nie mamy podstaw do odrzucenia hipotezy zerowej, zatem odpowiedzi w pierwszym oraz drugim okresie odpowiadają modelowi symetrii. Z tej informacji możemy wyciągnąć wniosek, że ogólny poziom komfortu pracy po szkoleniach (struktura ocen respondentów) nie uległ statystycznie istotnej zmianie między pierwszym a drugim badanym okresem. Uzyskany wynik testu Bowkera może być obarczony błędem metodologicznym. Jako test asymptotyczny nie radzi sobie on dobrze z małymi licznościami w komórkach. Ponadto, z uwagi na występowanie zer po obu stronach przekątnej głównej, algorytm musiał mechanicznie pomijać określone pary kategorii, aby uniknąć błędu dzielenia przez zero ($\frac{0}{0}$). Taka redukcja danych zniekształca aproksymację rozkładem chi-kwadrat, przez co wysoka p-wartość może być sztucznym artefaktem obliczeniowym. Aby uzyskać wiarygodne wyniki, w dalszej części analizy zastosowano dokładny test symetrii.
+
+# Część dodatkowa
+
+## Zadanie 1 - Dokładny test symetrii
+W przypadku zadania 4 występuje problem z zastosowaniem testu Bowkera ze względu na występowanie zer na określonych miejscach tabeli z danymi. Stosując ten test radziliśmy sobie z takimi przypadkami po prostu omijając problematyczne miejsca. Możemy natomiast także zastosować dokładny test symetrii, który pozwoli nam z większą dokładnością obliczyć p-wartość w takim przypadku.
+```{r}
+dokladny_test_symetrii <- function(macierz_danych) {
+
+  I <- nrow(macierz_danych)
+  p_wspolne <- 1
+  liczba_par_aktywnych <- 0
+  
+  for (i in 1:(I - 1)) {
+    for (j in (i + 1):I) {
+      y_ij <- macierz_danych[i, j]
+      y_ji <- macierz_danych[j, i]
+      n_gwiazdka <- y_ij + y_ji
+      
+      if (n_gwiazdka > 0) {
+        liczba_par_aktywnych <- liczba_par_aktywnych + 1
+        
+        p_obs_para <- dbinom(y_ij, size = n_gwiazdka, prob = 0.5)
+        
+        p_para_dokladne <- 0
+        for (k in 0:n_gwiazdka) {
+          p_k <- dbinom(k, size = n_gwiazdka, prob = 0.5)
+          
+          if (p_k <= p_obs_para + 1e-10) {
+            p_para_dokladne <- p_para_dokladne + p_k
+          }
+        }
+        p_wspolne <- p_wspolne * p_para_dokladne
+      }
+    }
+  }
+  
+  return(list(
+    p.value = p_wspolne,
+    analizowane_pary = liczba_par_aktywnych
+  ))
+}
+```
+W dokładnym teście symetrii dla każdej pary komórek leżących symetrycznie względem przekątnej ($y_{ij}$ oraz $y_{ji}$, gdzie $i < j$) oblicza się ich łączną sumę, oznaczaną jako $n_{ij}^* = y_{ij}+y_{ji}$. Jeżeli hipoteza zerowa o symetrii jest prawdziwa, to kierunek zmiany jest całkowicie losowy – z równym prawdopodobieństwem wynoszącym $0.5$ dana osoba mogła przejść z $i$ do $j$ lub z $j$ do $i$. Wobec tego, przy ustalonym $n_{ij}^*$, liczba osób w komórce $y_{ij}$ podlega rozkładowi dwumianowemu z parametrami $n = n_{ij}^*$ oraz $p = 0.5$
+$$
+Y_{ij} \sim B\left(n_{ij}^*, \frac{1}{2}\right).
+$$
+Prawdopodobieństwo, że w komórce $y_{ij}$ zaobserwujemy dokładnie tyle osób, ile wyszło w badaniu, wynosi:
+$$
+P(Y_{ij} = y_{ij} \mid n_{ij}^*) = \binom{n_{ij}^*}{y_{ij}} \left(\frac{1}{2}\right)^{n_{ij}^*}
+$$
+Ponieważ każda para komórek poza przekątną ($i < j$) jest od siebie niezależna, łączne prawdopodobieństwo uzyskania całej zaobserwowanej konfiguracji tabeli ($P_{\text{obs}}$) jest iloczynem prawdopodobieństw niezależnych rozkładów dwumianowych dla wszystkich par:
+$$
+P_{\text{obs}} = \prod_{i<j} \binom{n_{ij}^*}{y_{ij}} \left(\frac{1}{2}\right)^{n_{ij}^*}
+$$
+P-wartość stanowi sumę prawdopodobieństw wszystkich wygenerowanych tabel, których sumy par $y_{ij} + y_{ji}$ dla każdej pozycji są takie same jak w badanej tabeli, oraz których prawdopodobieństwo zajścia jest równe bądź mniejsze od prawdopodobieństwa naszej tabeli zaobserwowanej ($P \le P_{\text{obs}}$). Wynik testu dokładnego został przedstawiony w poniższej tabeli.
+```{r}
+#| label: tbl-zad1-dod
+
+wyniki_zad1_dod <- data.frame(
+  `Test` = c("dokładny"),
+  `p_value` = c(round(dokladny_test_symetrii(macierz_zad4)$p.value, 3)),
+  `alfa` = c(0.05)
+)
+
+wyniki_zad1_dod$Decyzja = ifelse(wyniki_zad1_dod$p_value < wyniki_zad1_dod$alfa, 
+                             "Odrzucenie H0", 
+                             "Brak podstaw do odrzucenia H0")
+
+wyniki_zad1_dod %>%
+  kable(
+    align = "c",
+    col.names = c("Zastosowany test", "p-wartość", "Poziom istotności (alfa)", "Decyzja"),
+    caption = "Wyniki przeprowadzonych testów dotyczących komfortu pracy po szkoleniach"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "bordered", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  )
+```
+Powyższy wynik znacząco różni się od wyniku wcześniejszego testu Bowkera. Zastosowanie dokładnego testu symetrii pozwoliło na wyeliminowanie błędów aproksymacji asymptotycznej wynikających z dużej liczby zer oraz małych liczności w komórkach tabeli. Uzyskany poziom krytyczny ($p = 0.039$) jest mniejszy od założonego poziomu istotności $\alpha = 0.05$, co stanowi statystycznie istotną podstawę do odrzucenia hipotezy zerowej o symetrii. Na tej podstawie wnioskujemy, że ogólna ocena podejścia firmy do wdrażania wiedzy ze szkoleń uległa istotnej zmianie między badanymi okresami.
+
+## Zadanie 2 - Porównanie mocy testów $Z$ i $Z_0$
+Zarówno test $Z$, jak i test $Z_0$ to asymptotyczne testy parametryczne służące do porównywania dwóch frakcji (proporcji) w próbach zależnych. Oba testy sprawdzają, czy nastąpiła globalna zmiana w rozkładach brzegowych. Definiujemy różnicę frakcji brzegowych jako
+$$
+D = p_{1+} - p_{+1}.
+$$
+Hipotezy w teście wyglądają następująco:
+
+- $H_0: D = 0 \implies p_{12} = p_{21}$ . Oznacza to, że frakcja osób zmieniających zdanie z odpowiedzi 1 na 2 jest taka sama jak z 2 na 1.
+
+- $H_1: D \neq 0 \implies p_{12} \neq p_{21}$. Oznacza to, że nastąpiła istotna zmiana, ludzie chętniej przechodzili w jedną z dwóch stron.
+
+W teście $Z$ statystyka testowa to 
+$$
+Z = \frac{D}{\hat{\sigma}(D)} \sim N(0, 1),
+$$
+gdzie 
+$$
+\hat{\sigma}^2(D) = \frac{\hat{p}_{1+}(1-\hat{p}_{1+}) + \hat{p}_{+1}(1-\hat{p}_{+1}) - 2(\hat{p}_{11}\hat{p}_{22} - \hat{p}_{12}\hat{p}_{21})}{n}.
+$$
+P-wartość natomiast to 
+$$
+p = 2\left(1-\Phi(|z|)\right).
+$$
+
+```{r}
+test_Z <- function(tabela) {
+  n <- sum(tabela)
+  p11 <- tabela[1,1] / n; p12 <- tabela[1,2] / n
+  p21 <- tabela[2,1] / n; p22 <- tabela[2,2] / n
+  
+  p1_plus <- p11 + p12
+  p_plus1 <- p11 + p21
+  
+  D <- p1_plus - p_plus1
+  
+  var_D <- (p1_plus * (1 - p1_plus) + p_plus1 * (1 - p_plus1) - 2 * (p11 * p22 - p12 * p21)) / n
+  
+  if(var_D <= 0) return(NA)
+  
+  Z_stat <- D / sqrt(var_D)
+  p_val <- 2 * (1 - pnorm(abs(Z_stat)))
+  return(p_val)
+}
+```
+Statystyka testowa $Z_0$ opiera się o alternatywny estymator 
+$$
+\hat{\sigma}_0^2(D) = \frac{y_{12}+y_{21}}{2}.
+$$
+Wtedy
+$$
+Z_0 = \frac{D}{\hat{\sigma}_0(D)} = \frac{y_{12}-y_{21}}{\sqrt{y_{12}+y_{21}}} \sim N(0, 1),
+$$
+a p-wartość wyznacza się tak jak przy teście $Z$.
+```{r}
+test_Z0 <- function(tabela) {
+  y12 <- tabela[1,2]
+  y21 <- tabela[2,1]
+  
+  mianownik <- sqrt(y12 + y21)
+  if(mianownik == 0) return(NA)
+  
+  Z0_stat <- (y12 - y21) / mianownik
+  p_val <- 2 * (1 - pnorm(abs(Z0_stat)))
+  return(p_val)
+}
+```
+Przeprowadzimy teraz symulacje w celu porównania mocy testu $Z$ oraz $Z_0$ dla różnych długości prób. Testy te wykonamy dla tabeli z wyraźną asymetrią.
+```{r}
+#| label: tbl-zad2-dod
+p_populacja <- c(0.42,  0.16, 
+                 0.10,  0.32)
+
+macierz_p <- matrix(
+  p_populacja, 
+  nrow = 2, 
+  byrow = TRUE,
+  dimnames = list(
+    `Pomiar I` = c("Stan 1", "Stan 2"),
+    `Pomiar II`   = c("Stan 1", "Stan 2")
+  )
+)
+
+macierz_p %>%
+  kable(
+    align = "c",
+    col.names = c("Pomiar I", "Stan 1", "Stan 2"),
+    caption = "Struktura prawdopodobieństwa"
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "bordered", "hover", "condensed"),
+    full_width = FALSE,
+    position = "center",
+    font_size = 12
+  ) %>%
+  add_header_above(c(" " = 1, "Pomiar II" = 2))
+```
+
+Wyniki symulacji Monte Carlo zostały przedstawione na poniższym wykresie.
+```{r}
+#| label: fig-porownanie-mocy
+#| fig-align: center
+#| fig-width: 8
+#| fig-height: 5
+
+library(tidyverse)
+set.seed(2026)
+B <- 2000
+wielkosci_prob <- c(10, 30, 50, 100, 200, 300, 500)
+alfa <- 0.05
+
+wyniki_mocy <- data.frame(n = integer(), Moc_Z = numeric(), Moc_Z0 = numeric())
+
+for(n in wielkosci_prob) {
+  odrzucenia_Z <- 0
+  odrzucenia_Z0 <- 0
+  proby_wazne <- 0
+  
+  dane_wielowymiarowe <- rmultinom(B, size = n, prob = p_populacja)
+  
+  for(b in 1:B) {
+    tab_b <- matrix(dane_wielowymiarowe[, b], nrow = 2, byrow = TRUE)
+    
+    p_Z <- test_Z(tab_b)
+    p_Z0 <- test_Z0(tab_b)
+    
+    if(!is.na(p_Z) & !is.na(p_Z0)) {
+      proby_wazne <- proby_wazne + 1
+      if(p_Z < alfa)  odrzucenia_Z  <- odrzucenia_Z + 1
+      if(p_Z0 < alfa) odrzucenia_Z0 <- odrzucenia_Z0 + 1
+    }
+  }
+  
+  wyniki_mocy <- rbind(wyniki_mocy, data.frame(
+    n = n,
+    Moc_Z = odrzucenia_Z / proby_wazne,
+    Moc_Z0 = odrzucenia_Z0 / proby_wazne
+  ))
+}
+
+wyniki_long <- wyniki_mocy %>%
+  pivot_longer(cols = c(Moc_Z, Moc_Z0), names_to = "Test", values_to = "Moc") %>%
+  mutate(Test = ifelse(Test == "Moc_Z", "Test Z", "Test Z0"))
+
+ggplot(wyniki_long, aes(x = n, y = Moc, color = Test, group = Test)) +
+  geom_line(size = 1.2) +
+  geom_point(size = 3) +
+  scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+  labs(
+    title = "Porównanie mocy testu Z oraz Z0",
+    subtitle = "Dla prawdziwego układu p12 = 0.16 vs p21 = 0.10 (H1 prawdziwa)",
+    x = "Wielkość próby (n)",
+    y = "Moc (frakcja odrzuceń H0)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+```
+Przeprowadzona symulacja Monte Carlo potwierdziła asymptotyczną równoważność testów $Z$ oraz $Z_0$, których krzywe mocy zbiegają się wraz ze wzrostem liczebności próby. W warunkach małych próbek ($n < 100$) zaobserwowano jednak rozbieżność: test $Z$ charakteryzuje się nieznacznie wyższą mocą empiryczną niż test $Z_0$. Wynika to z faktu, że przy subtelnym efekcie asymetrii ($0.16$ vs $0.10$) pełny estymator wariancji lepiej odzwierciedla faktyczne przesunięcie rozkładów brzegowych niż uproszczona wariancja testu $Z_0$, która jest optymalizowana wyłącznie pod kątem założeń hipotezy zerowej.
