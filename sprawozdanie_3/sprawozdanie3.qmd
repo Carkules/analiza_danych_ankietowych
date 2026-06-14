@@ -393,7 +393,7 @@ wyniki_zad4 %>%
 ```
 W teście uzyskaliśmy wynik p-wartości równy `r round(test_bowkera(macierz_zad4)$p.value, 3)` i jest on znacznie większy od przyjętego poziomu istotności $\alpha = 0.05$. Oznacza to, że nie mamy podstaw do odrzucenia hipotezy zerowej, zatem odpowiedzi w pierwszym oraz drugim okresie odpowiadają modelowi symetrii. Z tej informacji możemy wyciągnąć wniosek, że ogólny poziom komfortu pracy po szkoleniach (struktura ocen respondentów) nie uległ statystycznie istotnej zmianie między pierwszym a drugim badanym okresem. Uzyskany wynik testu Bowkera może być obarczony błędem metodologicznym. Jako test asymptotyczny nie radzi sobie on dobrze z małymi licznościami w komórkach. Ponadto, z uwagi na występowanie zer po obu stronach przekątnej głównej, algorytm musiał mechanicznie pomijać określone pary kategorii, aby uniknąć błędu dzielenia przez zero ($\frac{0}{0}$). Taka redukcja danych zniekształca aproksymację rozkładem chi-kwadrat, przez co wysoka p-wartość może być sztucznym artefaktem obliczeniowym. Aby uzyskać wiarygodne wyniki, w dalszej części analizy zastosowano dokładny test symetrii.
 
-# CZĘŚĆ II
+# Część II
 
 ## Zadanie 5 - Paradoks Simpsona
 W pewnym badaniu porównywano skuteczność nowej procedury leczenia (Leczenie A) oraz starej procedury (Leczenie B). Przeanalizujemy dane dla całej grupy oraz w podgrupach.
@@ -450,56 +450,36 @@ Przyjmujemy następujące mapowanie zmiennych:
 
 ```{r}
 #| label: tbl-zad6
+#| tbl-cap: "Statystyki weryfikujące dopasowanie narzuconych modeli log-liniowych"
 library(MASS)
 library(knitr)
 
-# Przygotowanie pełnej tablicy trójwymiarowej (1, 2, 3)
 tab_obs_3d <- table(
   CZY_KIER = dane$CZY_KIER, 
   PYT_2 = dane$PYT_2, 
   STAŻ = dane$STAŻ
 )
 
-# Przygotowanie tablicy dwuwymiarowej (brzegowej) dla zmiennych 1 i 3
 tab_obs_2d <- margin.table(tab_obs_3d, c(1, 3))
 
-# =======================================================
-# ETAP 1: Modele dla tablicy dwuwymiarowej (Zmienne 1 i 3)
-# =======================================================
-
-# 1. Model [13] - Model nasycony (pełna zależność między 1 i 3)
 mod_13 <- loglm(~ CZY_KIER * STAŻ, data = tab_obs_2d)
 exp_13 <- fitted(mod_13)
 
-# 2. Model [1 3] - Model niezależności brzegowej (często oznaczany jako [1][3])
 mod_1_3 <- loglm(~ CZY_KIER + STAŻ, data = tab_obs_2d)
 exp_1_3 <- fitted(mod_1_3)
 
-# =======================================================
-# ETAP 2: Modele dla tablicy trójwymiarowej (Zmienne 1, 2, 3)
-# =======================================================
-
-# 3. Model [1 2 3] - Wzajemna niezależność wszystkich trzech zmiennych
-# Alternatywny zapis: [1][2][3]
 mod_1_2_3 <- loglm(~ CZY_KIER + PYT_2 + STAŻ, data = tab_obs_3d)
 exp_1_2_3 <- fitted(mod_1_2_3)
 
-# 4. Model [12 3] - Niezależność łączna zmiennej 3 od pary 1 i 2
-# Alternatywny zapis: [12][3]
 mod_12_3 <- loglm(~ CZY_KIER * PYT_2 + STAŻ, data = tab_obs_3d)
 exp_12_3 <- fitted(mod_12_3)
 
-# 5. Model [12 13] - Niezależność warunkowa zmiennych 2 i 3 przy ustalonej 1
-# Alternatywny zapis: [12][13]
 mod_12_13 <- loglm(~ CZY_KIER * PYT_2 + CZY_KIER * STAŻ, data = tab_obs_3d)
 exp_12_13 <- fitted(mod_12_13)
 
-# 6. Model [1 23] - Niezależność łączna zmiennej 1 od pary 2 i 3
-# Alternatywny zapis: [1][23]
 mod_1_23 <- loglm(~ CZY_KIER + PYT_2 * STAŻ, data = tab_obs_3d)
 exp_1_23 <- fitted(mod_1_23)
 
-# Przygotowanie podsumowania dopasowania w formie tabeli
 wyniki_zad6 <- data.frame(
   `Oznaczenie modelu` = c("[13]", "[1 3]", "[1 2 3]", "[12 3]", "[12 13]", "[1 23]"),
   `Wymiar tablicy` = c("2D", "2D", "3D", "3D", "3D", "3D"),
@@ -516,10 +496,9 @@ wyniki_zad6 <- data.frame(
   check.names = FALSE
 )
 
-kable(wyniki_zad6, align = c("c", "c", "l", "c", "c"), caption = "Statystyki weryfikujące dopasowanie narzuconych modeli log-liniowych")
+kable(wyniki_zad6, align = c("c", "c", "l", "c", "c"))
 ```
 
-**Komentarz do wyliczonych wartości oczekiwanych:**
 Dla każdego z powyższych modeli funkcja `fitted()` wygenerowała odpowiednie tablice wartości oczekiwanych ($\hat{m}$). 
 * Modele z zerową liczbą stopni swobody (jak `[13]`) to modele nasycone w swojej przestrzeni wymiarowej, co oznacza, że wygenerowane przez nie wartości oczekiwane są perfekcyjnie równe wartościom empirycznym (obserwowanym). 
 * Z kolei dla modeli narzucających rygorystyczne struktury niezależności (np. `[1 2 3]`), wartości oczekiwane znacząco odbiegają od twardych danych zaobserwowanych w badaniu, co potwierdza wysoka wartość statystyki $G^2$. Wynika to z faktu, że algorytm musi wygładzić tablicę w taki sposób, aby sztucznie wymusić brak korelacji (zgodnie z równaniami zadanego modelu).
@@ -533,31 +512,26 @@ Oszacowanie prawdopodobieństw warunkowych w analizie wielowymiarowych tablic ko
 
 ```{r}
 #| label: tbl-zad7
+#| tbl-cap: "Oszacowania prawdopodobieństw warunkowych"
 library(MASS)
 library(knitr)
 
-# Budowa tablicy empirycznej
 tab_obs <- table(
   CZY_KIER = dane$CZY_KIER, 
   PYT_2 = dane$PYT_2, 
   STAŻ = dane$STAŻ
 )
 
-# Dopasowanie modelu [12 23]
 mod_12_23 <- loglm(~ CZY_KIER * PYT_2 + PYT_2 * STAŻ, data = tab_obs)
 tab_exp <- as.table(fitted(mod_12_23))
 
-# Funkcja do obliczania prawdopodobieństw (założenia wg polecenia)
 oblicz_prawdopodobienstwa <- function(tabela) {
-  # P(zdecydowanie zadowolona | stanowisko kierownicze)
   kier_pyt2 <- margin.table(tabela, c(1, 2))
   p1 <- kier_pyt2["Tak", "2"] / sum(kier_pyt2["Tak", ])
   
-  # P(stanowisko kierownicze | staż < 1 rok)
   kier_staz <- margin.table(tabela, c(1, 3))
   p2 <- kier_staz["Tak", "1"] / sum(kier_staz[, "1"])
   
-  # P(brak stanowiska | staż > 3 lata)
   p3 <- kier_staz["Nie", "3"] / sum(kier_staz[, "3"])
   
   return(c(p1, p2, p3))
@@ -577,7 +551,7 @@ wyniki_zad7 <- data.frame(
   check.names = FALSE
 )
 
-kable(wyniki_zad7, align = c("l", "c", "c"), caption = "Oszacowania prawdopodobieństw warunkowych")
+kable(wyniki_zad7, align = c("l", "c", "c"))
 ```
 
 Wymuszenie struktury `[12 23]` spowodowało przeliczenie danych i odchylenie prawdopodobieństw od surowych wartości z modelu nasyconego. Największą rozbieżność widać w zależności między stanowiskiem a stażem. Sugeruje to, że wprowadzony przez nas model o braku bezpośredniej relacji między stanowiskiem a stażem pracy narzuca danym strukturę zbyt uproszczoną.
@@ -585,7 +559,7 @@ Wymuszenie struktury `[12 23]` spowodowało przeliczenie danych i odchylenie pra
 
 ## Zadanie 8 - Weryfikacja hipotez
 
-Weryfikacja dobroci dopasowania modeli log-liniowych opiera się na teście ilorazu wiarygodności. Statystyką testową jest w tym teście miara $G^2$, definiowana jako:
+Weryfikacja poprawności dopasowania modeli log-liniowych opiera się na teście ilorazu wiarygodności. Statystyką testową jest w tym teście miara $G^2$, definiowana jako:
 
 $$
 G^2 = 2 \sum_{i,j,k} n_{ijk} \ln \left( \frac{n_{ijk}}{\hat{m}_{ijk}} \right)
@@ -602,8 +576,8 @@ Weryfikujemy trzy hipotezy z polecenia, dopasowując je do notacji modeli log-li
 
 ```{r}
 #| label: tbl-zad8
+#| tbl-cap: "Weryfikacja dobroci dopasowania hipotez z polecenia (Test G2)"
 
-# Hipotezy
 mod_h1 <- loglm(~ CZY_KIER + PYT_2 + STAŻ, data = tab_obs)
 mod_h2 <- loglm(~ CZY_KIER * STAŻ + PYT_2, data = tab_obs)
 mod_h3 <- loglm(~ CZY_KIER * STAŻ + PYT_2 * STAŻ, data = tab_obs)
@@ -624,10 +598,8 @@ wyniki_zad8 <- data.frame(
   check.names = FALSE
 )
 
-kable(wyniki_zad8, align = c("l", "c", "c", "c"), caption = "Weryfikacja dobroci dopasowania hipotez z polecenia (Test G2)")
+kable(wyniki_zad8, align = c("l", "c", "c", "c"))
 ```
-
-**Wnioski z weryfikacji hipotez:**
 
 Otrzymane w teście $G^2$ wyniki są zróżnicowane i zależą od weryfikowanej struktury. Dla modelu pełnej niezależności wzajemnej (`[1 2 3]`) wyznaczona $p$-wartość wynosi zaledwie $\approx 0.0006$, co zmusza nas do kategorycznego odrzucenia hipotezy zerowej ($H_0$). Oznacza to, że założenie o całkowitym braku powiązań między badanymi cechami w firmie jest fałszywe.
 
@@ -886,30 +858,26 @@ Przeprowadzimy algorytm eliminacji wstecznej, startując od modelu nasyconego (r
 
 ```{r}
 #| label: tbl-zad3-dodatkowe
+#| tbl-cap: "Porównanie optymalnych struktur wyłonionych przez algorytmy AIC i BIC"
 library(knitr)
 
-# Przekształcenie macierzy do postaci wymaganej przez funkcję glm()
 tab_df <- as.data.frame(tab_obs)
 colnames(tab_df) <- c("CZY_KIER", "PYT_2", "STAZ", "Freq")
 
-# Wyciągnięcie n (wielkości próby) dla wskaźnika BIC
 n_obs_total <- sum(tab_df$Freq) 
 
-# Budowa modelu bazowego (nasyconego) z rozkładem Poissona
 model_pelny <- glm(Freq ~ CZY_KIER * PYT_2 * STAZ, data = tab_df, family = poisson)
 
-# Automatyczna selekcja wstecz z kryteriami AIC oraz BIC
 model_aic <- step(model_pelny, direction = "backward", trace = 0)
 model_bic <- step(model_pelny, direction = "backward", k = log(n_obs_total), trace = 0)
 
-# Tłumaczenie wzorów R (CZY_KIER:STAZ + PYT_2:STAZ itp.) na formalną notację
 wyniki_dodatkowe3 <- data.frame(
   `Kryterium informacyjne` = c("AIC", "BIC"),
   `Wyłoniony optymalny model` = c("[13 23]", "[13 2]"),
   check.names = FALSE
 )
 
-kable(wyniki_dodatkowe3, align = c("c", "c"), caption = "Porównanie optymalnych struktur wyłonionych przez algorytmy AIC i BIC")
+kable(wyniki_dodatkowe3, align = c("c", "c"))
 ```
 
 Zwróćmy uwagę na wynik powyższej selekcji. Po przetłumaczeniu wzorów matematycznych wygenerowanych przez R na notację nawiasową okazuje się, że algorytmy informacyjne wyłoniły struktury `[13 23]` oraz `[13 2]`. 
