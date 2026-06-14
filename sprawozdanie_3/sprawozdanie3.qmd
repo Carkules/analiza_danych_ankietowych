@@ -591,7 +591,9 @@ $$
 G^2 = 2 \sum_{i,j,k} n_{ijk} \ln \left( \frac{n_{ijk}}{\hat{m}_{ijk}} \right)
 $$
 
-gdzie $n_{ijk}$ to liczebności zaobserwowane w komórkach badanej próby, a $\hat{m}_{ijk}$ to liczebności oczekiwane wyliczone przy założeniu, że weryfikowany model jest poprawny. Test operuje na hipotezie zerowej ($H_0$), która głosi, że model doskonale odzwierciedla dane. Jeśli $H_0$ jest prawdziwa, statystyka $G^2$ podlega asymptotycznie rozkładowi chi-kwadrat ($\chi^2$). Duże wartości $G^2$ (oraz małe $p$-wartości) oznaczają, że dopasowanie jest złe i należy odrzucić narzuconą strukturę.
+gdzie $n_{ijk}$ to liczebności zaobserwowane w komórkach badanej próby, a $\hat{m}_{ijk}$ to liczebności oczekiwane wyliczone przy założeniu, że weryfikowany model jest poprawny. Test operuje na hipotezie zerowej ($H_0$), która głosi, że testowany model log-liniowy dobrze odzwierciedla dane (różnice między modelem a danymi empirycznymi są jedynie dziełem przypadku). Jeśli $H_0$ jest prawdziwa, statystyka $G^2$ podlega asymptotycznie rozkładowi chi-kwadrat ($\chi^2$). 
+
+Należy pamiętać o specyfice tego testu: **wysoka $p$-wartość (przekraczająca poziom $\alpha = 0.05$) jest pożądana** – oznacza brak podstaw do odrzucenia $H_0$, czyli potwierdza, że narzucona przez nas struktura uproszczeń jest adekwatna.
 
 Weryfikujemy trzy hipotezy z polecenia, dopasowując je do notacji modeli log-liniowych:
 1. Zmienne są wzajemnie niezależne $\rightarrow$ model `[1 2 3]`.
@@ -625,8 +627,13 @@ wyniki_zad8 <- data.frame(
 kable(wyniki_zad8, align = c("l", "c", "c", "c"), caption = "Weryfikacja dobroci dopasowania hipotez z polecenia (Test G2)")
 ```
 
-We wszystkich trzech przypadkach statystyka $G^2$ przyjmuje wartości bardzo wysokie, a wyznaczone $p$-wartości są mniejsze niż $0.0001$. Należy bezapelacyjnie odrzucić hipotezę zerową ($H_0$) mówiącą o adekwatności tych struktur. Żadna z zaproponowanych w poleceniu form niezależności nie jest prawdziwa dla badanej populacji.
+**Wnioski z weryfikacji hipotez:**
 
+Otrzymane w teście $G^2$ wyniki są zróżnicowane i zależą od weryfikowanej struktury. Dla modelu pełnej niezależności wzajemnej (`[1 2 3]`) wyznaczona $p$-wartość wynosi zaledwie $\approx 0.0006$, co zmusza nas do kategorycznego odrzucenia hipotezy zerowej ($H_0$). Oznacza to, że założenie o całkowitym braku powiązań między badanymi cechami w firmie jest fałszywe.
+
+Zupełnie inaczej sytuacja wygląda dla dwóch pozostałych hipotez. Dla modelu izolacji zmiennej `PYT_2` (`[13 2]`) $p$-wartość wynosi $\approx 0.081$, a dla modelu niezależności warunkowej (`[13 23]`) osiąga aż $\approx 0.845$. Ponieważ obie te wartości przekraczają klasyczny poziom istotności $\alpha = 0.05$, **nie mamy podstaw do odrzucenia hipotezy zerowej**. Test dowodzi, że narzucone w poleceniu formy niezależności w tych dwóch konkretnych przypadkach bardzo dobrze pasują do zebranych danych ankietowych. Oznacza to, że możemy bez utraty kluczowych informacji uprościć opis relacji w firmie, uznając na przykład zadowolenie ze szkoleń za niezależne od faktu bycia kierownikiem przy uwzględnieniu stażu pracy. Szczególnie model `[13 23]` wykazuje wybitne dopasowanie do danych empirycznych.
+
+Co niezwykle istotne, wnioski te idealnie pokrywają się z wynikami automatycznej selekcji krokowej opartej na kryteriach informacyjnych, przeprowadzonej w zadaniu dodatkowym. Algorytmy AIC i BIC, podobnie jak przeprowadzony tu rygorystyczny test $G^2$, wskazały dokładnie te same dwie struktury (`[13 23]` oraz `[13 2]`) jako optymalne kompromisy między złożonością modelu a jakością dopasowania. Podkreśla to wyjątkową spójność analityczną otrzymanych wyników.
 
 # Część dodatkowa
 
